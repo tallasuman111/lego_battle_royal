@@ -1,0 +1,1894 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Silkscreen:wght@400;700&display=swap');
+
+:root {
+    --bg-color: #0b0c10;
+    --primary-color: #f5b041; /* Lego Yellow */
+    --accent-color: #e74c3c; /* Lego Red */
+    --blue-zone-color: #3498db; /* Electric Blue */
+    --glass-bg: rgba(15, 17, 26, 0.75);
+    --glass-border: rgba(245, 176, 65, 0.2);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    --font-heading: 'Silkscreen', sans-serif;
+    --font-body: 'Outfit', sans-serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body, html {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--bg-color);
+    font-family: var(--font-body);
+    color: #ffffff;
+}
+
+#game-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: radial-gradient(circle, #1a1c23 0%, #0a0b0d 100%);
+}
+
+#game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background-color: #000;
+}
+
+/* Beautiful Screen Overlays */
+.screen-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: rgba(10, 11, 14, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    z-index: 10;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.screen-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.menu-card {
+    background: var(--glass-bg);
+    border: 2px solid var(--glass-border);
+    border-radius: 20px;
+    padding: 40px;
+    width: 90%;
+    max-width: 500px;
+    text-align: center;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(30px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+.menu-card h1 {
+    font-family: var(--font-heading);
+    font-size: 2.2rem;
+    color: var(--primary-color);
+    margin-bottom: 5px;
+    text-shadow: 0 4px 0px rgba(0, 0, 0, 0.4), 0 0 15px rgba(245, 176, 65, 0.4);
+    letter-spacing: 2px;
+}
+
+.menu-card h2 {
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    color: var(--accent-color);
+    margin-bottom: 25px;
+    letter-spacing: 1px;
+}
+
+.input-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #a0a5b5;
+    margin-bottom: 8px;
+}
+
+.input-group input, .input-group select {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 12px 16px;
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+    font-family: var(--font-body);
+}
+
+.input-group input:focus, .input-group select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 10px rgba(245, 176, 65, 0.2);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.color-picker {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.color-option {
+    flex: 1;
+    height: 35px;
+    border-radius: 6px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.color-option.selected {
+    border-color: #fff;
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+}
+
+.start-btn {
+    width: 100%;
+    background: linear-gradient(135deg, var(--primary-color) 0%, #e67e22 100%);
+    border: none;
+    border-radius: 8px;
+    padding: 15px;
+    color: #000;
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(230, 126, 34, 0.4);
+    transition: all 0.3s ease;
+    margin-top: 10px;
+}
+
+.start-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(230, 126, 34, 0.6);
+}
+
+.start-btn:active {
+    transform: translateY(1px);
+}
+
+.controls-hint {
+    margin-top: 25px;
+    font-size: 0.8rem;
+    color: #7f8c8d;
+    line-height: 1.5;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Checkbox Styling */
+.checkbox-group {
+    margin-top: 15px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-start;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #a0a5b5;
+    user-select: none;
+    gap: 10px;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    height: 20px;
+    width: 20px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    display: inline-block;
+    position: relative;
+}
+
+.checkbox-container:hover input ~ .checkmark {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: var(--primary-color);
+}
+
+.checkbox-container input:checked ~ .checkmark {
+    background-color: rgba(245, 176, 65, 0.2);
+    border-color: var(--primary-color);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid var(--primary-color);
+    border-width: 0 2.5px 2.5px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-container input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.checkbox-lbl {
+    font-size: 0.8rem;
+    color: #cbd5e1;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+
+/* Dynamic HUD Overlay */
+#hud-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none; /* Let canvas capture mouse */
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 20px;
+}
+
+#hud-container * {
+    pointer-events: auto; /* Enable interaction on HUD items if needed */
+}
+
+/* TOP HUD */
+.hud-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.hud-panel {
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px 20px;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.match-stats {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+/* Left HUD Stacking Column */
+.hud-left-col {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+/* Controls Help Panel Style */
+.controls-help {
+    padding: 6px 12px;
+    gap: 10px;
+    animation: ctrlFadeIn 0.5s ease-out;
+}
+
+@keyframes ctrlFadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.keycap {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    background: rgba(245, 176, 65, 0.15);
+    color: var(--primary-color);
+    border: 1.5px solid var(--primary-color);
+    border-radius: 4px;
+    padding: 1px 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    text-shadow: 0 0 5px rgba(245, 176, 65, 0.5);
+    display: inline-block;
+    min-width: 18px;
+    text-align: center;
+    font-weight: 800;
+}
+
+.control-or {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.7rem;
+    font-weight: 800;
+}
+
+.control-label {
+    font-size: 0.65rem;
+    font-family: var(--font-heading);
+    color: #cbd5e1;
+    letter-spacing: 1px;
+}
+
+.auto-pickup-status {
+    font-size: 0.55rem;
+    color: var(--primary-color);
+    margin-left: 4px;
+    font-weight: 800;
+    opacity: 0.8;
+}
+
+.control-divider {
+    width: 1px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.hud-view-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-family: var(--font-heading);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.hud-view-btn:hover {
+    color: #fff;
+    text-shadow: 0 0 8px var(--primary-color);
+    transform: translateY(-1px);
+}
+
+.hud-view-btn:active {
+    transform: translateY(1px) scale(0.95);
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-val {
+    font-size: 1.3rem;
+    color: var(--primary-color);
+}
+
+.stat-lbl {
+    font-size: 0.6rem;
+    color: #7f8c8d;
+    margin-top: 2px;
+}
+
+.divider {
+    width: 1px;
+    height: 25px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.zone-tracker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 150px;
+}
+
+.zone-timer {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+}
+
+.zone-timer.shrinking {
+    color: #e74c3c;
+    animation: pulse 1s infinite alternate;
+}
+
+.zone-lbl {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #95a5a6;
+}
+
+@keyframes pulse {
+    from { transform: scale(1); opacity: 0.8; }
+    to { transform: scale(1.05); opacity: 1; }
+}
+
+/* Minimap Box */
+.minimap-wrapper {
+    position: relative;
+    width: 140px;
+    height: 140px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 2px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+    background-color: #121820;
+}
+
+#minimap-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+/* BOTTOM HUD */
+.hud-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    width: 100%;
+}
+
+.vital-bars {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 15px;
+    border-radius: 12px;
+    box-shadow: var(--glass-shadow);
+}
+
+.bar-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bar-lbl {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.bar-val {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+}
+
+.progress-bar-bg {
+    width: 100%;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    width: 100%;
+    border-radius: 5px;
+    transition: width 0.2s ease-out;
+}
+
+.bar-health {
+    background: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%);
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.3);
+}
+
+.bar-shield {
+    background: linear-gradient(90deg, #3498db 0%, #2980b9 100%);
+    box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
+}
+
+.bar-boost {
+    background: linear-gradient(90deg, #f1c40f 0%, #f39c12 100%);
+    box-shadow: 0 0 10px rgba(241, 196, 15, 0.3);
+}
+
+/* Weapon Arsenal */
+.weapon-arsenal {
+    display: flex;
+    gap: 12px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    padding: 12px;
+    border-radius: 14px;
+    box-shadow: var(--glass-shadow);
+}
+
+.weapon-slot {
+    width: 75px;
+    height: 75px;
+    border-radius: 8px;
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.02);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.weapon-slot.active {
+    background: rgba(245, 176, 65, 0.08);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 12px rgba(245, 176, 65, 0.3);
+}
+
+.weapon-slot.empty {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.weapon-icon-svg {
+    width: 42px;
+    height: 42px;
+    fill: #ffffff;
+    transition: fill 0.2s ease;
+}
+
+.weapon-slot.active .weapon-icon-svg {
+    fill: var(--primary-color);
+}
+
+.weapon-key {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    font-size: 0.6rem;
+    font-family: var(--font-heading);
+    color: #7f8c8d;
+}
+
+.weapon-ammo {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.weapon-ammo.low {
+    color: var(--accent-color);
+    animation: blink 0.8s infinite alternate;
+}
+
+@keyframes blink {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+}
+
+/* Touch Control Area */
+.touch-control-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 6;
+    display: none; /* Enabled dynamically by JS if touch is active */
+}
+
+.touch-control-overlay.active {
+    display: block;
+}
+
+.virtual-joystick-container {
+    position: absolute;
+    bottom: 40px;
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.03);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(2px);
+    pointer-events: auto;
+    touch-action: none;
+}
+
+#joystick-move {
+    left: 50px;
+}
+
+#joystick-aim {
+    right: 50px;
+}
+
+.joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 50px;
+    height: 50px;
+    margin-left: -25px;
+    margin-top: -25px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0.15) 100%);
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: transform 0.05s ease;
+}
+
+.touch-action-buttons {
+    position: absolute;
+    bottom: 180px;
+    right: 50px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    pointer-events: auto;
+}
+
+.touch-btn {
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background: var(--glass-bg);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: var(--glass-shadow);
+    touch-action: none;
+}
+
+.touch-btn:active {
+    background: var(--primary-color);
+    color: #000;
+    border-color: var(--primary-color);
+    transform: scale(0.92);
+}
+
+.touch-btn svg {
+    width: 24px;
+    height: 24px;
+    fill: currentColor;
+}
+
+/* Center HUD Notifications & Actions */
+.hud-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    pointer-events: none;
+    text-align: center;
+}
+
+.action-prompt {
+    background: rgba(0, 0, 0, 0.85);
+    border: 1px solid var(--primary-color);
+    border-radius: 20px;
+    padding: 10px 25px;
+    color: var(--primary-color);
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+    box-shadow: 0 0 15px rgba(245, 176, 65, 0.2);
+    animation: float 2s infinite ease-in-out;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
+.announcement-banner {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    color: var(--accent-color);
+    text-shadow: 0 0 10px rgba(231, 76, 60, 0.6);
+    background: rgba(0,0,0,0.6);
+    padding: 10px 30px;
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-color);
+    border-right: 4px solid var(--accent-color);
+    transform: scale(0);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.announcement-banner.active {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Victory / Defeat Screen Stats Cards */
+.results-screen h1 {
+    font-family: var(--font-heading);
+    font-size: 3rem;
+    margin-bottom: 5px;
+    letter-spacing: 2px;
+}
+
+.results-screen.victory h1 {
+    color: var(--primary-color);
+    text-shadow: 0 0 20px rgba(245, 176, 65, 0.6);
+}
+
+.results-screen.defeat h1 {
+    color: var(--accent-color);
+    text-shadow: 0 0 20px rgba(231, 76, 60, 0.6);
+}
+
+.results-screen h2 {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    color: #bdc3c7;
+    margin-bottom: 30px;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+    width: 100%;
+    margin-bottom: 30px;
+}
+
+.stat-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.stat-box .val {
+    font-family: var(--font-heading);
+    font-size: 1.6rem;
+    color: #fff;
+}
+
+.stat-box .lbl {
+    font-size: 0.75rem;
+    color: #7f8c8d;
+    text-transform: uppercase;
+    margin-top: 5px;
+    letter-spacing: 1px;
+}
+
+.restart-btn {
+    width: 100%;
+    background: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 15px;
+    color: #000;
+    font-family: var(--font-heading);
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.restart-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Responsive Scaling */
+@media(max-width: 768px) {
+    .controls-help {
+        display: none !important;
+    }
+    #hud-container {
+        padding: 10px;
+    }
+    .hud-panel {
+        padding: 8px 12px;
+        gap: 10px;
+    }
+    .minimap-wrapper {
+        width: 100px;
+        height: 100px;
+        border-radius: 10px;
+    }
+    .vital-bars {
+        width: 240px;
+        padding: 10px;
+    }
+    .weapon-arsenal {
+        padding: 8px;
+        gap: 8px;
+    }
+    .weapon-slot {
+        width: 55px;
+        height: 55px;
+    }
+    .weapon-icon-svg {
+        width: 32px;
+        height: 32px;
+    }
+    #joystick-move {
+        left: 30px;
+    }
+    #joystick-aim {
+        right: 30px;
+    }
+    .touch-action-buttons {
+        right: 30px;
+        bottom: 180px;
+    }
+}
+
+/* ============================================================================
+   5. MULTIPLAYER LOBBY AND TEAMMATE HUD
+   ============================================================================ */
+.lobby-card {
+    max-width: 550px !important;
+    padding: 30px 40px !important;
+}
+
+.lobby-row {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+}
+
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+/* Mode / Team Toggle Groups */
+.toggle-group {
+    display: flex;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 3px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.toggle-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #8a8d9a;
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.toggle-btn:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.toggle-btn.selected {
+    background: var(--primary-color);
+    color: #000;
+    box-shadow: 0 2px 10px rgba(245, 176, 65, 0.35);
+}
+
+/* Scene/Map Selector Grid */
+.scene-selector-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-top: 5px;
+}
+
+.scene-card {
+    position: relative;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1.5px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 18px 8px 10px 8px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    min-height: 70px;
+    box-sizing: border-box;
+}
+
+.scene-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.scene-card.selected {
+    border-color: var(--primary-color);
+    background: rgba(245, 176, 65, 0.05);
+    box-shadow: 0 4px 15px rgba(245, 176, 65, 0.15);
+}
+
+.scene-card-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    transition: height 0.3s ease;
+}
+
+.scene-card:hover .scene-card-bg {
+    height: 6px;
+}
+
+.grassland-gradient {
+    background: linear-gradient(90deg, #2ecc71 0%, #27ae60 100%);
+}
+
+.desert-gradient {
+    background: linear-gradient(90deg, #f1c40f 0%, #e67e22 100%);
+}
+
+.urban-gradient {
+    background: linear-gradient(90deg, #95a5a6 0%, #34495e 100%);
+}
+
+.scene-card-title {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 800;
+    color: #fff;
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+    text-align: center;
+}
+
+.scene-card-desc {
+    font-size: 0.55rem;
+    color: #7f8c8d;
+    margin-top: 2px;
+    text-align: center;
+}
+
+.scene-card.selected .scene-card-title {
+    color: var(--primary-color);
+    text-shadow: 0 0 5px rgba(245, 176, 65, 0.3);
+}
+
+/* Play Button Container with Server Status */
+.start-btn-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 15px;
+}
+
+.status-indicator {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+}
+
+.status-indicator.online {
+    background: rgba(46, 204, 113, 0.12);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.25);
+    text-shadow: 0 0 5px rgba(46, 204, 113, 0.4);
+}
+
+.status-indicator.offline {
+    background: rgba(231, 76, 60, 0.12);
+    color: #e74c3c;
+    border: 1px solid rgba(231, 76, 60, 0.25);
+    text-shadow: 0 0 5px rgba(231, 76, 60, 0.4);
+}
+
+.status-indicator.connecting {
+    background: rgba(241, 196, 15, 0.12);
+    color: #f1c40f;
+    border: 1px solid rgba(241, 196, 15, 0.25);
+    text-shadow: 0 0 5px rgba(241, 196, 15, 0.4);
+    animation: statusPulse 1s infinite alternate;
+}
+
+@keyframes statusPulse {
+    from { opacity: 0.6; transform: scale(0.98); }
+    to { opacity: 1; transform: scale(1.02); }
+}
+
+/* Teammate HUD Card */
+.teammate-hud {
+    padding: 8px 12px !important;
+    width: 140px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    animation: teammateSlideIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes teammateSlideIn {
+    from { opacity: 0; transform: translateX(-15px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+.teammate-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.tm-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #7f8c8d;
+    transition: all 0.2s ease;
+}
+
+.tm-dot.active {
+    background: #2ecc71;
+    box-shadow: 0 0 6px #2ecc71;
+}
+
+.tm-dot.dead {
+    background: #e74c3c;
+    box-shadow: 0 0 6px #e74c3c;
+}
+
+.tm-name {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    color: #f8fafc;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 105px;
+}
+
+.tm-bars {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+}
+
+.tm-bar-container {
+    width: 100%;
+}
+
+.progress-bar-bg.compact {
+    height: 5px !important;
+    border: none !important;
+    border-radius: 2px !important;
+    background: rgba(0, 0, 0, 0.4) !important;
+}
+
+.progress-bar-bg.compact .progress-bar-fill {
+    border-radius: 2px !important;
+}
+
+
+/* ============================================================================
+   6. DYNAMIC DEVICE AND PUBG MOBILE OVERHAUL STYLES
+   ============================================================================ */
+
+/* Touch Control Area (PUBG Mobile Redesign) */
+.touch-control-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    display: none;
+}
+
+body.device-mobile .touch-control-overlay,
+.touch-control-overlay.active {
+    display: block;
+}
+
+.touch-left-side {
+    position: absolute;
+    bottom: 20px;
+    left: 30px;
+    pointer-events: auto;
+}
+
+body.device-mobile .touch-left-side {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 30vw;
+    height: 100vh;
+    pointer-events: auto;
+    z-index: 9;
+}
+
+.joystick-outer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 140px;
+    height: 215px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    pointer-events: none;
+    opacity: 0.55;
+    transition: opacity 0.2s ease, transform 0.1s ease;
+}
+
+body.device-mobile .joystick-outer {
+    left: 30px !important;
+    bottom: 30px !important;
+}
+
+/* PUBG Mobile Sprint Lock Zone */
+.sprint-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 60px;
+    border-radius: 50% 50% 0 0;
+    background: linear-gradient(180deg, rgba(241, 196, 15, 0.4) 0%, rgba(0, 0, 0, 0.3) 100%);
+    border: 1px dashed rgba(241, 196, 15, 0.6);
+    border-bottom: none;
+    margin-bottom: 15px;
+    font-size: 0.55rem;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+    opacity: 0.7;
+    animation: pulseSprint 1.5s infinite alternate;
+}
+
+.sprint-indicator.active {
+    background: linear-gradient(180deg, rgba(241, 196, 15, 0.8) 0%, rgba(241, 196, 15, 0.2) 100%);
+    border-color: #f1c40f;
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+@keyframes pulseSprint {
+    from { transform: translateY(0); }
+    to { transform: translateY(-4px); }
+}
+
+.sprint-icon {
+    font-size: 0.9rem;
+    margin-bottom: -2px;
+}
+
+.virtual-joystick-container {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.35);
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    position: relative;
+    touch-action: none;
+}
+
+.joystick-knob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 55px;
+    height: 55px;
+    margin-left: -27.5px;
+    margin-top: -27.5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.08) 100%);
+    border: 2.5px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    touch-action: none;
+    transition: transform 0.05s ease;
+}
+
+.touch-right-side {
+    position: absolute;
+    bottom: 20px;
+    right: 30px;
+    pointer-events: auto;
+    width: 250px;
+    height: 250px;
+}
+
+/* Aim Joystick placement */
+.touch-right-side #joystick-aim {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    width: 130px;
+    height: 130px;
+}
+
+/* PUBG Mobile Circular Shoot Button */
+.fire-btn {
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(231, 76, 60, 0.65) 0%, rgba(0, 0, 0, 0.55) 100%);
+    border: 2.5px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    cursor: pointer;
+    touch-action: none;
+    z-index: 12;
+    transition: all 0.1s ease;
+}
+
+.fire-btn:active {
+    background: radial-gradient(circle, rgba(231, 76, 60, 0.95) 0%, rgba(192, 57, 43, 0.8) 100%);
+    transform: scale(0.92);
+    border-color: #fff;
+}
+
+.bullet-svg {
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+}
+
+/* PUBG Arc buttons around right joystick */
+.touch-action-buttons {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.circular-btn {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.45);
+    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: rgba(255, 255, 255, 0.8);
+    pointer-events: auto;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.25);
+    transition: all 0.1s ease;
+}
+
+.circular-btn:active {
+    background: var(--primary-color);
+    color: #000;
+    border-color: var(--primary-color);
+    transform: scale(0.9);
+}
+
+/* Arc button coordinates (PUBG Mobile thumb sweep) */
+#t-btn-eject {
+    top: -40px;
+    right: 50px;
+    width: 60px;
+    height: 60px;
+    background: rgba(241, 196, 15, 0.65);
+    border-color: #f1c40f;
+    color: #000;
+    animation: blinkEject 1s infinite alternate;
+}
+
+#t-btn-reload {
+    bottom: 140px;
+    right: 10px;
+}
+
+#t-btn-heal {
+    bottom: 120px;
+    right: 75px;
+}
+
+#t-btn-interact {
+    bottom: 60px;
+    right: 140px;
+}
+
+#t-btn-view-toggle {
+    top: 30px;
+    right: 80px;
+    background: rgba(52, 152, 219, 0.45);
+    border-color: rgba(52, 152, 219, 0.6);
+}
+
+/* Mobile PUBG Layout overrides */
+body.device-mobile #hud-container {
+    padding: 10px;
+}
+
+/* Consolidate health & boost to bottom left corner */
+body.device-mobile .vital-bars {
+    position: absolute;
+    bottom: 15px;
+    left: 15px;
+    transform: none;
+    width: 220px;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    padding: 8px 12px;
+    z-index: 8;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+body.device-mobile .bar-container {
+    margin-bottom: 0;
+}
+
+body.device-mobile .bar-lbl {
+    font-size: 0.55rem;
+    padding: 0 2px;
+}
+
+body.device-mobile .progress-bar-bg {
+    height: 7px;
+}
+
+/* Horizontal weapons directly at bottom center */
+body.device-mobile .hud-bottom {
+    display: contents;
+}
+
+body.device-mobile .weapon-arsenal {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: auto;
+    margin-bottom: 0px; /* Reset margin since it sits directly on the bottom now */
+    background: rgba(0, 0, 0, 0.55);
+    border: 1.5px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 5px;
+    gap: 8px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+}
+
+body.device-mobile .weapon-slot {
+    width: 60px;
+    height: 50px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+body.device-mobile .weapon-slot:active {
+    transform: scale(0.95);
+    background: rgba(245, 176, 65, 0.2);
+}
+
+body.device-mobile .weapon-slot.active {
+    background: rgba(241, 196, 15, 0.25);
+    border-color: #f1c40f;
+}
+
+/* Realign top panels for mobile */
+body.device-mobile .hud-left-col {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+}
+
+body.device-mobile .match-stats {
+    background: rgba(0, 0, 0, 0.55);
+    border-color: rgba(255, 255, 255, 0.1);
+    padding: 6px 12px;
+}
+
+/* Minimap and stats in top-right capsule */
+body.device-mobile .minimap-wrapper {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+body.device-mobile #minimap-canvas {
+    width: 90px !important;
+    height: 90px !important;
+}
+
+body.device-mobile .zone-tracker {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(231, 76, 60, 0.4);
+    border: 1.5px solid rgba(231, 76, 60, 0.5);
+    padding: 4px 12px;
+    border-radius: 20px;
+    animation: flashZone 2s infinite alternate;
+}
+
+/* Hide desktop helper controls and title menus on mobile */
+body.device-mobile .controls-help,
+body.device-mobile .hud-view-btn {
+    display: none !important;
+}
+
+/* TV Gamepad Prompt overlays */
+body.device-tv .controls-help {
+    display: block !important;
+}
+
+body.device-tv .keycap {
+    background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+    border-color: #34495e;
+    color: #f1c40f;
+    font-size: 0.65rem;
+    padding: 3px 8px;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+/* Gamepad Debugger CSS Overlay */
+.gamepad-debug-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    width: 280px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 1.5px solid rgba(245, 176, 65, 0.4);
+    border-radius: 12px;
+    padding: 12px;
+    color: #fff;
+    font-family: monospace;
+    font-size: 0.7rem;
+    z-index: 9999;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    pointer-events: none;
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    opacity: 0.9;
+    transition: opacity 0.3s ease;
+}
+
+.gamepad-debug-panel.hidden {
+    display: none !important;
+}
+
+.debug-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    padding-bottom: 6px;
+    margin-bottom: 2px;
+}
+
+.debug-title {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+.debug-status {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+    border: 1px solid rgba(46, 204, 113, 0.4);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    font-weight: bold;
+}
+
+.debug-item.name {
+    color: #bdc3c7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.65rem;
+}
+
+.debug-grid {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 8px;
+}
+
+.debug-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.group-title {
+    color: #7f8c8d;
+    font-weight: bold;
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    padding-bottom: 2px;
+}
+
+.axes-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 2px;
+}
+
+.axis-val {
+    color: #3498db;
+}
+
+.axis-val.active {
+    color: #f1c40f;
+    font-weight: bold;
+}
+
+.buttons-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 3px;
+    margin-top: 2px;
+}
+
+.btn-indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #7f8c8d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.55rem;
+    font-weight: bold;
+    transition: all 0.1s ease;
+}
+
+.btn-indicator.pressed {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #000;
+    box-shadow: 0 0 8px rgba(245, 176, 65, 0.4);
+    transform: scale(1.05);
+}
+
+/* Dynamic orientation warning overlay */
+#orientation-overlay {
+    display: none;
+    z-index: 1000;
+    text-align: center;
+}
+
+.orientation-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+}
+
+.rotate-device-icon {
+    animation: rotateDevice 2.5s infinite ease-in-out;
+}
+
+@keyframes rotateDevice {
+    0%, 100% {
+        transform: rotate(0deg);
+    }
+    50% {
+        transform: rotate(-90deg);
+    }
+}
+
+.orientation-card p {
+    color: #a0a5b5;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+
+
+/* Hide isometric toggle buttons completely */
+.hud-view-btn, .camera-toggle-btn {
+    display: none !important;
+}
+
+/* Dynamic Mobile Landscape Compact Adjustments (prevents overflow & cuts) */
+@media (max-height: 500px) {
+    .menu-card {
+        padding: 15px 30px !important;
+        max-height: 92vh !important;
+        overflow-y: auto !important;
+        border-radius: 12px !important;
+        margin: 10px 0 !important;
+    }
+    .menu-card h1 {
+        font-size: 1.5rem !important;
+        margin-bottom: 2px !important;
+    }
+    .menu-card h2 {
+        font-size: 0.85rem !important;
+        margin-bottom: 10px !important;
+    }
+    .input-group {
+        margin-bottom: 8px !important;
+    }
+    .input-group label {
+        font-size: 0.7rem !important;
+        margin-bottom: 3px !important;
+    }
+    .input-group input, .input-group select {
+        padding: 6px 10px !important;
+        font-size: 0.85rem !important;
+    }
+    .lobby-row {
+        gap: 8px !important;
+    }
+    .scene-selector-grid {
+        gap: 6px !important;
+    }
+    .scene-card {
+        padding: 6px !important;
+    }
+    .scene-card-desc {
+        display: none !important; /* Hide description in landscape mobile to save massive vertical space! */
+    }
+    .start-btn {
+        padding: 10px !important;
+        font-size: 1rem !important;
+    }
+    .controls-hint {
+        margin-top: 10px !important;
+        font-size: 0.65rem !important;
+        padding: 6px !important;
+    }
+    /* Compact HUD elements slightly in landscape mobile */
+    #hud-container {
+        padding: 8px !important;
+    }
+    .minimap-wrapper {
+        width: 80px !important;
+        height: 80px !important;
+    }
+}
+
+/* Nearby Loot List Panel Styles */
+.nearby-loot-panel {
+    position: absolute;
+    right: 20px;
+    top: 180px;
+    width: 200px;
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 10px;
+    box-shadow: var(--glass-shadow);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto;
+    z-index: 99;
+    animation: ctrlFadeIn 0.3s ease-out;
+}
+
+body.device-mobile .nearby-loot-panel {
+    right: 15px;
+    top: 120px;
+    width: 170px;
+    padding: 6px;
+    gap: 5px;
+}
+
+.loot-panel-header {
+    font-family: var(--font-heading);
+    font-size: 0.65rem;
+    color: var(--primary-color);
+    letter-spacing: 0.5px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+}
+
+.loot-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.loot-item-card {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 6px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.loot-item-card:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.loot-item-card:active {
+    transform: scale(0.96);
+}
+
+.loot-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.loot-item-name {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 110px;
+}
+
+body.device-mobile .loot-item-name {
+    font-size: 0.62rem;
+    max-width: 90px;
+}
+
+.loot-item-desc {
+    font-size: 0.52rem;
+    color: #a0a5b5;
+}
+
+.loot-item-btn {
+    font-family: var(--font-heading);
+    font-size: 0.55rem;
+    background: rgba(245, 176, 65, 0.15);
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-weight: 800;
+    text-shadow: 0 0 5px rgba(245, 176, 65, 0.5);
+}
+
+
+

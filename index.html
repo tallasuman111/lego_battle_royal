@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>LEGO Battle Royale - HTML5</title>
+    <meta name="description" content="A gorgeous top-down LEGO-themed Battle Royale game supporting touch controls and gamepad controllers.">
+    <!-- iOS / PWA Borderless Standalone Fullscreen Capabilities -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="LEGO Contra">
+    <meta name="mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="style.css?v=19">
+</head>
+<body>
+    <div id="game-container">
+        <!-- Beautiful Landscape Lock Overlay for Mobile Devices -->
+        <div id="orientation-overlay" class="screen-overlay">
+            <div class="menu-card orientation-card">
+                <div class="rotate-device-icon">
+                    <svg viewBox="0 0 24 24" width="64" height="64" style="fill: var(--primary-color);">
+                        <path d="M16 1H8C6.9 1 6 1.9 6 3v18c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H8V5h8v14z" />
+                    </svg>
+                </div>
+                <h1>LANDSCAPE REQUIRED</h1>
+                <p>Please rotate your device to landscape mode to play LEGO Battle Royale.</p>
+            </div>
+        </div>
+
+        <!-- Main Canvas -->
+        <canvas id="game-canvas"></canvas>
+
+        <!-- Dynamic HUD Overlay -->
+        <div id="hud-container">
+            <!-- Top HUD Panel -->
+            <div class="hud-top">
+                <!-- Left HUD Column -->
+                <div class="hud-left-col">
+                    <!-- Match Status Panel -->
+                    <div class="hud-panel match-stats">
+                        <div class="stat-item">
+                            <span id="hud-alive" class="stat-val">20</span>
+                            <span class="stat-lbl">ALIVE</span>
+                        </div>
+                        <div class="divider"></div>
+                        <div class="stat-item">
+                            <span id="hud-kills" class="stat-val">0</span>
+                            <span class="stat-lbl">KILLS</span>
+                        </div>
+                        <div class="divider"></div>
+                        <button id="btn-toggle-view" class="hud-view-btn" title="Toggle View Mode [V]">
+                            <svg viewBox="0 0 24 24" width="16" height="16" style="fill: currentColor; margin-bottom: 2px;">
+                                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                            </svg>
+                            <span id="view-lbl" style="font-size: 0.6rem; margin-top: 2px;">2D FLAT</span>
+                        </button>
+                    </div>
+                    <!-- Duo Teammate Panel -->
+                    <div id="teammate-hud" class="hud-panel teammate-hud hidden">
+                        <div class="teammate-header">
+                            <span class="tm-dot active"></span>
+                            <span id="tm-name" class="tm-name">TEAMMATE</span>
+                        </div>
+                        <div class="tm-bars">
+                            <div class="tm-bar-container">
+                                <div class="progress-bar-bg compact">
+                                    <div id="tm-health-fill" class="progress-bar-fill bar-health" style="width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div class="tm-bar-container">
+                                <div class="progress-bar-bg compact">
+                                    <div id="tm-shield-fill" class="progress-bar-fill bar-shield" style="width: 0%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Controls Help Panel -->
+                    <div id="controls-help" class="hud-panel controls-help">
+                        <div class="control-item">
+                            <kbd class="keycap">R</kbd>
+                            <span class="control-label">RELOAD</span>
+                        </div>
+                        <div class="control-divider"></div>
+                        <div class="control-item">
+                            <kbd class="keycap">E</kbd>
+                            <span class="control-or">/</span>
+                            <kbd class="keycap">F</kbd>
+                            <span class="control-label">LOOT</span>
+                            <span id="auto-pickup-hud-status" class="auto-pickup-status"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zone Circle Alert Panel -->
+                <div class="hud-panel zone-tracker">
+                    <span id="hud-zone-timer" class="zone-timer">02:00</span>
+                    <span id="hud-zone-lbl" class="zone-lbl">NEXT CIRCLE</span>
+                </div>
+
+                <!-- Minimap Panel -->
+                <div class="minimap-wrapper">
+                    <canvas id="minimap-canvas"></canvas>
+                </div>
+            </div>
+
+            <!-- Central HUD Action Prompts & Banners -->
+            <div class="hud-center">
+                <div id="action-prompt" class="action-prompt hidden">PRESS [E] / TAP TO EJECT</div>
+                <div id="announcement-banner" class="announcement-banner">SAFE ZONE SHANK!</div>
+            </div>
+
+            <!-- Bottom HUD Panel -->
+            <div class="hud-bottom">
+                <!-- Health / Shield Bars -->
+                <div class="vital-bars">
+                    <div class="bar-container">
+                        <div class="bar-lbl">
+                            <span>HEALTH</span>
+                            <span id="hud-health-val" class="bar-val">100 / 100</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="hud-health-fill" class="progress-bar-fill bar-health" style="width: 100%;"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="bar-container">
+                        <div class="bar-lbl">
+                            <span>SHIELD</span>
+                            <span id="hud-shield-val" class="bar-val">0 / 100</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="hud-shield-fill" class="progress-bar-fill bar-shield" style="width: 0%;"></div>
+                        </div>
+                    </div>
+
+                    <div class="bar-container">
+                        <div class="bar-lbl">
+                            <span>BOOST</span>
+                            <span id="hud-boost-val" class="bar-val">0%</span>
+                        </div>
+                        <div class="progress-bar-bg">
+                            <div id="hud-boost-fill" class="progress-bar-fill bar-boost" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weapon Arsenal Slots -->
+                <div class="weapon-arsenal">
+                    <!-- Slot 1 (Pistol) -->
+                    <div id="w-slot-1" class="weapon-slot active" data-slot="0">
+                        <span class="weapon-key">1</span>
+                        <svg class="weapon-icon-svg" viewBox="0 0 24 24" id="svg-pistol">
+                            <!-- Handgun SVG outline -->
+                            <path d="M19,8H11V6H9V8H5v2H3v3c0,1.1 0.9,2 2,2h3l1,4h2l0.5-2H11l-0.5-2H16l1,1.5c0.3,0.3 0.7,0.5 1.1,0.5h1.9c1.1,0 2-0.9 2-2V10C21,8.9 20.1,8 19,8z M19,13h-2v-1h2V13z" />
+                        </svg>
+                        <span id="w-ammo-1" class="weapon-ammo">--</span>
+                    </div>
+                    <!-- Slot 2 (Primary weapon) -->
+                    <div id="w-slot-2" class="weapon-slot empty" data-slot="1">
+                        <span class="weapon-key">2</span>
+                        <svg class="weapon-icon-svg" viewBox="0 0 24 24" id="svg-primary">
+                            <!-- Rifle SVG outline -->
+                            <path d="M21,11.5L20,9H16V6H14V9H10V6H8V9H4V8H2v3l2,2.5V17h2v-3h12v3h2v-3.5l1-1V11.5z M10,12H8v-1h2V12z M15,12h-2v-1h2V12z" />
+                        </svg>
+                        <span id="w-ammo-2" class="weapon-ammo">--</span>
+                    </div>
+                    <!-- Slot 3 (Special weapon) -->
+                    <div id="w-slot-3" class="weapon-slot empty" data-slot="2">
+                        <span class="weapon-key">3</span>
+                        <svg class="weapon-icon-svg" viewBox="0 0 24 24" id="svg-special">
+                            <!-- Rocket/Brick launcher SVG -->
+                            <path d="M22,9c0-1.1-0.9-2-2-2H10L8.5,5.5C8.1,5.2 7.7,5 7.2,5H2v6h2v6c0,1.1 0.9,2 2,2h9v-2h-3v-2h8c1.1,0 2-0.9 2-2V9z M17,11h-2V9h2V11z" />
+                        </svg>
+                        <span id="w-ammo-3" class="weapon-ammo">--</span>
+                    </div>
+                    <!-- Drop Weapon Button Slot -->
+                    <div id="btn-drop-weapon" class="weapon-slot" style="opacity: 0.35; border-color: rgba(231, 76, 60, 0.3); pointer-events: none; cursor: default;" title="Drop Current Weapon [G]">
+                        <span class="weapon-key">G</span>
+                        <svg viewBox="0 0 24 24" style="width: 32px; height: 32px; fill: #e74c3c;">
+                            <path d="M16 9v6H8V9h8m2-2H6v10h12V7z"/>
+                        </svg>
+                        <span class="weapon-ammo" style="color: #e74c3c; font-size: 0.6rem;">DROP</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Nearby Loot List Panel -->
+            <div id="nearby-loot-panel" class="nearby-loot-panel hidden">
+                <div class="loot-panel-header">NEARBY LOOT</div>
+                <div id="nearby-loot-list" class="loot-list">
+                    <!-- Dynamic Loot Items filled by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Touch Controls Interface -->
+        <div id="touch-controls" class="touch-control-overlay">
+            <!-- Left Side controls -->
+            <div class="touch-left-side">
+                <div id="joystick-move-container" class="joystick-outer">
+                    <div id="joystick-sprint-indicator" class="sprint-indicator">
+                        <div class="sprint-icon">⚡</div>
+                        <span>LOCK SPRINT</span>
+                    </div>
+                    <div id="joystick-move" class="virtual-joystick-container">
+                        <div id="joystick-move-knob" class="joystick-knob"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side controls -->
+            <div class="touch-right-side">
+                <!-- Large PUBG bullet fire button -->
+                <div id="t-btn-fire" class="touch-btn fire-btn">
+                    <svg viewBox="0 0 24 24" width="36" height="36" class="bullet-svg">
+                        <path d="M12,2A3,3 0 0,0 9,5V12C9,14 10,16 12,17C14,16 15,14 15,12V5A3,3 0 0,0 12,2M12,19C9.5,19 7,20 7,22H17C17,20 14.5,19 12,19Z" fill="currentColor"/>
+                    </svg>
+                </div>
+
+                <!-- Right Aim Joystick -->
+                <div id="joystick-aim" class="virtual-joystick-container">
+                    <div id="joystick-aim-knob" class="joystick-knob"></div>
+                </div>
+                
+                <!-- Action button arc around Aim Joystick -->
+                <div class="touch-action-buttons">
+                    <div id="t-btn-eject" class="touch-btn circular-btn hidden" title="Eject From Plane">
+                        <svg viewBox="0 0 24 24"><path d="M5,20h14v-2H5V20z M12,2L4,10h5v6h6v-6h5L12,2z" fill="currentColor"/></svg>
+                    </div>
+                    <div id="t-btn-reload" class="touch-btn circular-btn" title="Reload Weapon">
+                        <svg viewBox="0 0 24 24"><path d="M12,6v3l4-4l-4-4v3c-4.42,0-8,3.58-8,8c0,1.57,0.46,3.03,1.24,4.26L6.7,14.8C6.25,13.97,6,13.01,6,12C6,8.69,8.69,6,12,6z M18.76,7.74L17.3,9.2c0.45,0.83,0.7,1.79,0.7,2.8c0,3.31-2.69,6-6,6v-3l-4,4l4,4v-3c4.42,0,8-3.58,8-8C20,10.43,19.54,8.97,18.76,7.74z" fill="currentColor"/></svg>
+                    </div>
+                    <div id="t-btn-heal" class="touch-btn circular-btn" title="Heal / Medkit">
+                        <svg viewBox="0 0 24 24"><path d="M19,10.5h-5.5V5h-3v5.5H5v3h5.5V19h3v-5.5H19V10.5z" fill="currentColor"/></svg>
+                    </div>
+                    <div id="t-btn-interact" class="touch-btn circular-btn" title="Interact / Loot">
+                        <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M13,17h-2v-6h2V17z M13,9h-2V7h2V9z" fill="currentColor"/></svg>
+                    </div>
+                    <!-- Isometric/2D View Toggle camera button -->
+                    <div id="t-btn-view-toggle" class="touch-btn circular-btn camera-toggle-btn" title="Toggle 2.5D View">
+                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="currentColor"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Start Game Screen -->
+        <div id="menu-screen" class="screen-overlay">
+            <div class="menu-card lobby-card">
+                <h1>LEGO</h1>
+                <h2>BATTLE ROYALE</h2>
+                
+                <!-- Player Profile Settings -->
+                <div class="lobby-row">
+                    <div class="input-group flex-2">
+                        <label for="player-name">MINIFIG USERNAME</label>
+                        <input type="text" id="player-name" value="Player1">
+                    </div>
+                    <div class="input-group flex-1">
+                        <label>AUTO LOOT</label>
+                        <label class="checkbox-container">
+                            <input type="checkbox" id="auto-pickup" checked>
+                            <span class="checkmark"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>MINIFIG COLOR</label>
+                    <div class="color-picker" id="fig-color-picker">
+                        <div class="color-option selected" data-color="#f5b041" style="background-color: #f5b041;"></div> <!-- Yellow -->
+                        <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;"></div> <!-- Red -->
+                        <div class="color-option" data-color="#3498db" style="background-color: #3498db;"></div> <!-- Blue -->
+                        <div class="color-option" data-color="#2ecc71" style="background-color: #2ecc71;"></div> <!-- Green -->
+                        <div class="color-option" data-color="#9b59b6" style="background-color: #9b59b6;"></div> <!-- Purple -->
+                        <div class="color-option" data-color="#f39c12" style="background-color: #f39c12;"></div> <!-- Orange -->
+                    </div>
+                </div>
+
+                <!-- Match Setup Settings -->
+                <div class="lobby-row">
+                    <div class="input-group flex-1">
+                        <label>GAME MODE</label>
+                        <div class="toggle-group" id="mode-toggle">
+                            <button class="toggle-btn selected" data-value="offline">OFFLINE</button>
+                            <button class="toggle-btn" data-value="online">ONLINE</button>
+                        </div>
+                    </div>
+                    <div class="input-group flex-1">
+                        <label>TEAM TYPE</label>
+                        <div class="toggle-group" id="team-toggle">
+                            <button class="toggle-btn selected" data-value="solo">SOLO</button>
+                            <button class="toggle-btn" data-value="duo">DUO</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Duo Match Code (Only shown when DUO is selected) -->
+                <div id="duo-code-group" class="input-group hidden">
+                    <label for="duo-code">DUO MATCHMAKING CODE (OPTIONAL)</label>
+                    <input type="text" id="duo-code" placeholder="E.G. BRICK123" maxlength="10">
+                </div>
+
+                <!-- Bot Count selection (Offline only) -->
+                <div id="bot-count-group" class="input-group">
+                    <label for="bot-count">BOT BACKFILL COUNT</label>
+                    <select id="bot-count">
+                        <option value="9">10 Players (9 Bots)</option>
+                        <option value="19" selected>20 Players (19 Bots)</option>
+                        <option value="29">30 Players (29 Bots)</option>
+                        <option value="49">50 Players (49 Bots)</option>
+                    </select>
+                </div>
+
+                <!-- Map / Scene Selection Grid -->
+                <div class="input-group">
+                    <label>SELECT MAP SCENE</label>
+                    <div class="scene-selector-grid">
+                        <div class="scene-card selected" data-scene="grassland">
+                            <div class="scene-card-bg grassland-gradient"></div>
+                            <span class="scene-card-title">LEGO ISLAND</span>
+                            <span class="scene-card-desc">Lush Grassland</span>
+                        </div>
+                        <div class="scene-card" data-scene="desert">
+                            <div class="scene-card-bg desert-gradient"></div>
+                            <span class="scene-card-title">STUD RUINS</span>
+                            <span class="scene-card-desc">Desert Dunes</span>
+                        </div>
+                        <div class="scene-card" data-scene="urban">
+                            <div class="scene-card-bg urban-gradient"></div>
+                            <span class="scene-card-title">BRICKS CITY</span>
+                            <span class="scene-card-desc">Concrete Core</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Play Button Container with Server Status -->
+                <div class="start-btn-container">
+                    <button id="btn-start-game" class="start-btn">MATCHMAKING</button>
+                    <div id="server-status" class="status-indicator offline">OFFLINE (LOCAL PLAY)</div>
+                </div>
+
+                <div class="controls-hint">
+                    <strong>Controls:</strong> WASD/Arrows to Move. Mouse to Aim & Shoot.<br>
+                    [E] or [F] to Interact/Loot. [R] to Reload.<br>
+                    [1] [2] [3] to Switch Weapons. [SPACE] to Heal.<br>
+                    <em>Fully supports <strong>Gamepad Controllers</strong> & <strong>Touch Devices</strong>!</em>
+                </div>
+            </div>
+        </div>
+
+        <!-- Game Results Screen -->
+        <div id="results-screen" class="screen-overlay hidden">
+            <div id="results-card" class="menu-card results-screen">
+                <h1 id="results-title">VICTORY!</h1>
+                <h2 id="results-subtitle">WINNER WINNER CHICKEN DINNER</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <span id="res-rank" class="val">#1</span>
+                        <span class="lbl">Rank</span>
+                    </div>
+                    <div class="stat-box">
+                        <span id="res-kills" class="val">0</span>
+                        <span class="lbl">Kills</span>
+                    </div>
+                    <div class="stat-box">
+                        <span id="res-damage" class="val">0</span>
+                        <span class="lbl">Damage</span>
+                    </div>
+                    <div class="stat-box">
+                        <span id="res-time" class="val">0:00</span>
+                        <span class="lbl">Survival</span>
+                    </div>
+                </div>
+
+                <button id="btn-restart" class="restart-btn">RETURN TO LOBBY</button>
+            </div>
+        </div>
+        <!-- Gamepad Debug Panel -->
+        <div id="gamepad-debug" class="gamepad-debug-panel hidden">
+            <div class="debug-header">
+                <span class="debug-title">🕹️ GAMEPAD DEBUGGER</span>
+                <span class="debug-status">CONNECTED</span>
+            </div>
+            <div id="gamepad-name" class="debug-item name">NO GAMEPAD DETECTED</div>
+            <div class="debug-grid">
+                <div class="debug-group">
+                    <span class="group-title">STICKS</span>
+                    <div class="debug-item">LEFT: <span id="debug-left-stick">0.00, 0.00</span></div>
+                    <div class="debug-item">RIGHT: <span id="debug-right-stick">0.00, 0.00</span></div>
+                </div>
+                <div class="debug-group">
+                    <span class="group-title">RAW AXES</span>
+                    <div class="axes-grid" id="debug-axes-grid">
+                        <!-- Filled by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="debug-group">
+                <span class="group-title">RAW BUTTONS</span>
+                <div class="buttons-grid" id="debug-buttons-grid">
+                    <!-- Filled by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified Standalone Game Engine -->
+    <script src="game.js?v=19"></script>
+</body>
+</html>
