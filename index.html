@@ -346,6 +346,9 @@
                     <!-- Custom HUD Settings Button -->
                     <button id="btn-customize-hud" class="customize-hud-btn">⚙️ CUSTOMIZE TOUCH HUD</button>
 
+                    <!-- Custom Gamepad Settings Button -->
+                    <button id="btn-customize-gamepad" class="customize-hud-btn" style="display: none; background: linear-gradient(135deg, #27ae60, #2ecc71); margin-top: 10px; border: 1px solid rgba(255,255,255,0.15);">🎮 CALIBRATE GAMEPAD BINDINGS</button>
+
                     <div class="controls-hint">
                         <strong>Controls:</strong> WASD/Arrows to Move. Mouse to Aim & Shoot.<br>
                         [E] or [F] to Interact/Loot. [R] to Reload.<br>
@@ -537,33 +540,7 @@
             <span style="font-weight: bold; letter-spacing: 1px; font-size: 0.95rem;">SPECTATING MATCH</span>
             <button id="btn-spectator-exit" style="background: #fff; color: #000; border: none; border-radius: 20px; padding: 6px 16px; font-weight: bold; font-family: var(--font-heading); cursor: pointer; transition: all 0.2s ease; font-size: 0.85rem;" onmouseover="this.style.background='#e74c3c'; this.style.color='#fff';" onmouseout="this.style.background='#fff'; this.style.color='#000';">EXIT TO LOBBY</button>
         </div>
-        <!-- Gamepad Debug Panel -->
-        <div id="gamepad-debug" class="gamepad-debug-panel hidden">
-            <div class="debug-header">
-                <span class="debug-title">🕹️ GAMEPAD DEBUGGER</span>
-                <span class="debug-status">CONNECTED</span>
-            </div>
-            <div id="gamepad-name" class="debug-item name">NO GAMEPAD DETECTED</div>
-            <div class="debug-grid">
-                <div class="debug-group">
-                    <span class="group-title">STICKS</span>
-                    <div class="debug-item">LEFT: <span id="debug-left-stick">0.00, 0.00</span></div>
-                    <div class="debug-item">RIGHT: <span id="debug-right-stick">0.00, 0.00</span></div>
-                </div>
-                <div class="debug-group">
-                    <span class="group-title">RAW AXES</span>
-                    <div class="axes-grid" id="debug-axes-grid">
-                        <!-- Filled by JS -->
-                    </div>
-                </div>
-            </div>
-            <div class="debug-group">
-                <span class="group-title">RAW BUTTONS</span>
-                <div class="buttons-grid" id="debug-buttons-grid">
-                    <!-- Filled by JS -->
-                </div>
-            </div>
-        </div>
+
     </div>
 
     <!-- Squad Invitation Toast Container -->
@@ -580,6 +557,81 @@
         <div class="customize-actions">
             <button id="btn-hud-reset" class="customize-btn reset">RESET DEFAULTS</button>
             <button id="btn-hud-save" class="customize-btn save">SAVE & EXIT</button>
+        </div>
+    </div>
+
+    <!-- Gamepad Customizer Dialog Modal -->
+    <div id="gamepad-customizer-modal" class="screen-overlay hidden" style="background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); z-index: 12000; display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; width: 100%; height: 100%;">
+        <div class="menu-card" style="max-width: 500px; width: 90%; background: rgba(20, 20, 20, 0.95); border: 2px solid rgba(255, 255, 255, 0.15); border-radius: 16px; padding: 25px; box-sizing: border-box; text-align: center; font-family: var(--font-heading); color: #fff; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);">
+            <h2 style="margin: 0 0 10px 0; color: #f1c40f; font-size: 1.6rem; letter-spacing: 2px;">🎮 GAMEPAD CALIBRATION</h2>
+            <p style="margin: 0 0 20px 0; font-size: 0.9rem; color: #aaa; line-height: 1.4;">
+                Press any button on your gamepad to view its registered index. Click <strong>BIND</strong> next to an action, then press the controller button you want to assign!
+            </p>
+
+            <!-- Real-time Debug Indicator -->
+            <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; padding: 12px; margin-bottom: 20px; font-size: 0.9rem; display: flex; flex-direction: column; gap: 5px;">
+                <div>CONNECTED CONTROLLER: <span id="gp-debug-name" style="color: #3498db; font-weight: bold;">NONE</span></div>
+                <div style="margin-top: 5px; font-size: 0.85rem; color: #2ecc71;">LAST PRESSED: <span id="gp-debug-last-btn" style="font-weight: bold; background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 4px;">NONE (Button index will show here)</span></div>
+            </div>
+
+            <!-- Bindings List -->
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 25px; text-align: left; font-size: 0.95rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>🔥 SHOOT / FIRE:</span>
+                    <div>
+                        <span id="bind-lbl-shoot" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 7 (RT)</span>
+                        <button class="gp-bind-btn" data-action="shoot" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>🔄 SWAP WEAPON (NEXT):</span>
+                    <div>
+                        <span id="bind-lbl-bumperRight" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 5 (RB)</span>
+                        <button class="gp-bind-btn" data-action="bumperRight" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>↩️ SWAP WEAPON (PREV):</span>
+                    <div>
+                        <span id="bind-lbl-bumperLeft" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 4 (LB)</span>
+                        <button class="gp-bind-btn" data-action="bumperLeft" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>🚀 START GAME / MATCH:</span>
+                    <div>
+                        <span id="bind-lbl-startGame" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 9 (START)</span>
+                        <button class="gp-bind-btn" data-action="startGame" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>🪂 EJECT / INTERACT (PICK UP LOOT):</span>
+                    <div>
+                        <span id="bind-lbl-interact" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 0 (A)</span>
+                        <button class="gp-bind-btn" data-action="interact" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>🗑️ DROP WEAPON:</span>
+                    <div>
+                        <span id="bind-lbl-dropWeapon" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 13 (D-PAD DOWN)</span>
+                        <button class="gp-bind-btn" data-action="dropWeapon" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.05);">
+                    <span>⚡ RELOAD WEAPON:</span>
+                    <div>
+                        <span id="bind-lbl-reload" style="color: #f1c40f; margin-right: 10px; font-weight: bold;">Button 2 (X / Square)</span>
+                        <button class="gp-bind-btn" data-action="reload" style="background: #3498db; color: #fff; border: none; padding: 4px 12px; border-radius: 4px; font-family: var(--font-heading); font-size: 0.8rem; cursor: pointer;">BIND</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Buttons -->
+            <div style="display: flex; gap: 15px; width: 100%;">
+                <button id="btn-gp-reset" style="flex: 1; padding: 12px; border: none; border-radius: 8px; font-family: var(--font-heading); font-size: 1rem; font-weight: bold; cursor: pointer; background: rgba(255,255,255,0.1); color: #fff; transition: all 0.2s ease;">RESET DEFAULTS</button>
+                <button id="btn-gp-save" style="flex: 1; padding: 12px; border: none; border-radius: 8px; font-family: var(--font-heading); font-size: 1rem; font-weight: bold; cursor: pointer; background: #2ecc71; color: #fff; transition: all 0.2s ease;">CLOSE & SAVE</button>
+            </div>
         </div>
     </div>
 

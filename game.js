@@ -873,6 +873,9 @@ class InputManager {
         this.moveJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
         this.aimJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
         this.maxJoyRadius = 50;
+        this.wasButton0Pressed = false;
+        this.wasYPressed = false;
+        this.gamepadEjectBlocked = false;
 
         this.boundKeyDown = this.handleKeyDown.bind(this);
         this.boundKeyUp = this.handleKeyUp.bind(this);
@@ -883,6 +886,7 @@ class InputManager {
         this.initKeyboardMouse();
         this.initTouchControls();
         this.initGamepad();
+        this.initGamepadCustomizer();
         this.applySavedHUDLayout();
     }
 
@@ -915,6 +919,9 @@ class InputManager {
     initGamepad() {
         window.addEventListener('gamepadconnected', (e) => {
             console.log("Gamepad connected:", e.gamepad);
+            const gpBtn = document.getElementById('btn-customize-gamepad');
+            if (gpBtn) gpBtn.style.display = 'block';
+
             const currentDevice = this.director ? this.director.deviceType : (window.director ? window.director.deviceType : 'desktop');
             if (currentDevice !== 'tv') {
                 const ua = navigator.userAgent;
@@ -927,6 +934,19 @@ class InputManager {
 
         window.addEventListener('gamepaddisconnected', (e) => {
             console.log("Gamepad disconnected:", e.gamepad);
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            let anyConnected = false;
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i] && gamepads[i].connected) {
+                    anyConnected = true;
+                    break;
+                }
+            }
+            const gpBtn = document.getElementById('btn-customize-gamepad');
+            if (gpBtn) {
+                gpBtn.style.display = anyConnected ? 'block' : 'none';
+            }
+
             const currentDevice = this.director ? this.director.deviceType : (window.director ? window.director.deviceType : 'desktop');
             if (currentDevice === 'tv') {
                 const ua = navigator.userAgent;
@@ -1461,87 +1481,7 @@ class InputManager {
         }
     }
 
-    updateGamepadDebugHUD(activeGamepad) {
-        if (!activeGamepad) {
-            const debugPanel = document.getElementById('gamepad-debug');
-            if (debugPanel) debugPanel.classList.add('hidden');
-            return;
-        }
 
-        const debugPanel = document.getElementById('gamepad-debug');
-        if (debugPanel) {
-            debugPanel.classList.remove('hidden');
-            
-            const debugName = document.getElementById('gamepad-name');
-            if (debugName) debugName.textContent = activeGamepad.id;
-
-            const deadzone = 0.15;
-            const applyDeadzone = (val) => {
-                if (Math.abs(val) < deadzone) return 0;
-                return (val - Math.sign(val) * deadzone) / (1 - deadzone);
-            };
-
-            const stickLeftX = applyDeadzone(activeGamepad.axes[0]);
-            const stickLeftY = applyDeadzone(activeGamepad.axes[1]);
-            const debugLeft = document.getElementById('debug-left-stick');
-            if (debugLeft) debugLeft.textContent = `${stickLeftX.toFixed(2)}, ${stickLeftY.toFixed(2)}`;
-
-            let stick2 = activeGamepad.axes.length > 2 ? applyDeadzone(activeGamepad.axes[2]) : 0;
-            let stick3 = activeGamepad.axes.length > 3 ? applyDeadzone(activeGamepad.axes[3]) : 0;
-            let stick4 = activeGamepad.axes.length > 4 ? applyDeadzone(activeGamepad.axes[4]) : 0;
-            let stick5 = activeGamepad.axes.length > 5 ? applyDeadzone(activeGamepad.axes[5]) : 0;
-
-            let stickRightX = 0;
-            let stickRightY = 0;
-
-            // Detect if axes are triggers (resting at -1)
-            const axis2IsTrigger = activeGamepad.axes.length > 2 && activeGamepad.axes[2] < -0.9;
-            const axis3IsTrigger = activeGamepad.axes.length > 3 && activeGamepad.axes[3] < -0.9;
-            const axis4IsTrigger = activeGamepad.axes.length > 4 && activeGamepad.axes[4] < -0.9;
-            const axis5IsTrigger = activeGamepad.axes.length > 5 && activeGamepad.axes[5] < -0.9;
-
-            if (activeGamepad.mapping === 'standard') {
-                stickRightX = stick2;
-                stickRightY = stick3;
-            } else {
-                // Dynamically assign stick axes by avoiding trigger axes
-                if (axis3IsTrigger) {
-                    stickRightX = stick2;
-                    stickRightY = (activeGamepad.axes.length > 5 && !axis5IsTrigger) ? stick5 : (activeGamepad.axes.length > 4 && !axis4IsTrigger ? stick4 : stick3);
-                } else if (axis2IsTrigger) {
-                    stickRightX = stick3;
-                    stickRightY = stick4;
-                } else {
-                    stickRightX = stick2;
-                    stickRightY = stick3;
-                }
-            }
-
-            const debugRight = document.getElementById('debug-right-stick');
-            if (debugRight) debugRight.textContent = `${stickRightX.toFixed(2)}, ${stickRightY.toFixed(2)}`;
-
-            const axesGrid = document.getElementById('debug-axes-grid');
-            if (axesGrid) {
-                axesGrid.innerHTML = '';
-                for (let i = 0; i < Math.min(6, activeGamepad.axes.length); i++) {
-                    const val = activeGamepad.axes[i];
-                    const activeClass = Math.abs(val) > 0.15 ? 'active' : '';
-                    axesGrid.innerHTML += `<div class="axis-item">A${i}: <span class="axis-val ${activeClass}">${val.toFixed(2)}</span></div>`;
-                }
-            }
-
-            const buttonsGrid = document.getElementById('debug-buttons-grid');
-            if (buttonsGrid) {
-                buttonsGrid.innerHTML = '';
-                for (let i = 0; i < Math.min(16, activeGamepad.buttons.length); i++) {
-                    const btn = activeGamepad.buttons[i];
-                    const isPressed = btn.pressed || btn.value > 0.5;
-                    const pressedClass = isPressed ? 'pressed' : '';
-                    buttonsGrid.innerHTML += `<div class="btn-indicator ${pressedClass}">${i}</div>`;
-                }
-            }
-        }
-    }
 
     updateGamepad(camera) {
         const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
@@ -1553,23 +1493,91 @@ class InputManager {
             }
         }
 
-        // Hide debug panel if no gamepad connected
         if (!activeGamepad) {
-            const debugPanel = document.getElementById('gamepad-debug');
-            if (debugPanel) debugPanel.classList.add('hidden');
             return false;
         }
 
-        // TV Gamepad Menu Navigation Helper: Allow A (Button 0) or Start (Button 9) to auto-click Matchmaking
-        if (this.director && this.director.gameState === 'menu') {
-            const btnA = activeGamepad.buttons[0];
-            const btnStart = activeGamepad.buttons.length > 9 ? activeGamepad.buttons[9] : null;
-            if ((btnA && btnA.pressed) || (btnStart && btnStart.pressed)) {
-                const startBtn = document.getElementById('btn-start-game');
-                if (startBtn && !startBtn.disabled) {
-                    if (!this.menuClickCooldown || Date.now() - this.menuClickCooldown > 1000) {
-                        this.menuClickCooldown = Date.now();
-                        startBtn.click();
+        // Gamepad Customizer Real-time Listening & Debug Loop
+        if (this.gamepadCustomizerOpen) {
+            const nameEl = document.getElementById('gp-debug-name');
+            if (nameEl) nameEl.textContent = activeGamepad.id;
+
+            for (let i = 0; i < activeGamepad.buttons.length; i++) {
+                const btn = activeGamepad.buttons[i];
+                if (btn && (btn.pressed || btn.value > 0.4)) {
+                    const lastBtnEl = document.getElementById('gp-debug-last-btn');
+                    if (lastBtnEl) {
+                        lastBtnEl.textContent = "Button " + i + " (" + btn.value.toFixed(2) + ")";
+                    }
+
+                    if (this.listeningAction) {
+                        this.gamepadBindings[this.listeningAction] = i;
+                        try { sfx.playClick(); } catch (e) {}
+                        
+                        this.listeningAction = null;
+                        this.updateGamepadLabels();
+
+                        const bindButtons = document.querySelectorAll('.gp-bind-btn');
+                        bindButtons.forEach(b => b.textContent = 'BIND');
+                    }
+                    break;
+                }
+            }
+            return true;
+        }
+
+        // TV Gamepad Menu Navigation Helper
+        if (this.director) {
+            const btnA = activeGamepad.buttons[this.gamepadBindings.accept !== undefined ? this.gamepadBindings.accept : 0];
+            const btnB = activeGamepad.buttons.length > 1 ? activeGamepad.buttons[this.gamepadBindings.cancel !== undefined ? this.gamepadBindings.cancel : 1] : null;
+            const btnY = activeGamepad.buttons.length > 3 ? activeGamepad.buttons[this.gamepadBindings.spectate !== undefined ? this.gamepadBindings.spectate : 3] : null;
+            const btnStart = activeGamepad.buttons[this.gamepadBindings.startGame !== undefined ? this.gamepadBindings.startGame : 9];
+
+            if (this.director.gameState === 'menu') {
+                if (btnStart && btnStart.pressed) {
+                    const startBtn = document.getElementById('btn-start-game');
+                    if (startBtn && !startBtn.disabled) {
+                        if (!this.menuClickCooldown || Date.now() - this.menuClickCooldown > 1000) {
+                            this.menuClickCooldown = Date.now();
+                            startBtn.click();
+                        }
+                    }
+                }
+            } else if (this.director.gameState === 'results') {
+                // Allow A or Start to return to lobby
+                if ((btnA && btnA.pressed) || (btnStart && btnStart.pressed)) {
+                    const restartBtn = document.getElementById('btn-restart');
+                    if (restartBtn && !restartBtn.disabled) {
+                        if (!this.menuClickCooldown || Date.now() - this.menuClickCooldown > 1000) {
+                            this.menuClickCooldown = Date.now();
+                            restartBtn.click();
+                        }
+                    }
+                }
+                // Allow Y to watch game (spectate)
+                if (btnY && btnY.pressed) {
+                    const spectateBtn = document.getElementById('btn-spectate');
+                    if (spectateBtn && !spectateBtn.classList.contains('hidden')) {
+                        if (!this.menuClickCooldown || Date.now() - this.menuClickCooldown > 1000) {
+                            this.menuClickCooldown = Date.now();
+                            spectateBtn.click();
+                        }
+                    }
+                }
+            } else if (this.director.gameState === 'combat') {
+                const banner = document.getElementById('spectator-banner');
+                const isSpectating = banner && !banner.classList.contains('hidden');
+                
+                if (isSpectating) {
+                    // Allow A, B, or Start to exit spectator mode and return to lobby
+                    if ((btnA && btnA.pressed) || (btnB && btnB.pressed) || (btnStart && btnStart.pressed)) {
+                        const specExitBtn = document.getElementById('btn-spectator-exit');
+                        if (specExitBtn) {
+                            if (!this.menuClickCooldown || Date.now() - this.menuClickCooldown > 1000) {
+                                this.menuClickCooldown = Date.now();
+                                specExitBtn.click();
+                            }
+                        }
                     }
                 }
             }
@@ -1643,9 +1651,6 @@ class InputManager {
             this.triggerDeviceSwitch('tv');
         }
 
-        // Always update Gamepad Debug HUD if a controller is connected
-        this.updateGamepadDebugHUD(activeGamepad);
-
         // If no active gamepad input, yield control to keyboard/mouse (avoid device fight stutter)
         if (!hasInput) {
             return false;
@@ -1674,24 +1679,34 @@ class InputManager {
             this.isAiming = true;
         }
 
-        const rt = activeGamepad.buttons[7];
-        if (rt) {
-            this.isFiring = rt.pressed || rt.value > 0.1;
+        const btnLB = activeGamepad.buttons[this.gamepadBindings.bumperLeft !== undefined ? this.gamepadBindings.bumperLeft : 4];
+        const btnRB = activeGamepad.buttons[this.gamepadBindings.bumperRight !== undefined ? this.gamepadBindings.bumperRight : 5];
+        const btnRT = activeGamepad.buttons[this.gamepadBindings.shoot !== undefined ? this.gamepadBindings.shoot : 7];
+        const btnInteract = activeGamepad.buttons[this.gamepadBindings.interact !== undefined ? this.gamepadBindings.interact : 0];
+        const btnDrop = activeGamepad.buttons[this.gamepadBindings.dropWeapon !== undefined ? this.gamepadBindings.dropWeapon : 13];
+
+        if (btnRT) {
+            this.isFiring = btnRT.pressed || btnRT.value > 0.1;
         }
 
-        const btnInteract = activeGamepad.buttons[0];
         if (btnInteract && (btnInteract.pressed || btnInteract.value > 0.5)) {
             this.actions.interact = true;
-            this.actions.eject = true;
+            if (!this.wasButton0Pressed && !this.gamepadEjectBlocked) {
+                this.actions.eject = true;
+                this.wasButton0Pressed = true;
+            }
+        } else if (btnInteract && !(btnInteract.pressed || btnInteract.value > 0.5)) {
+            this.wasButton0Pressed = false;
+            this.gamepadEjectBlocked = false;
         }
 
-        // Support Reload on Button 2 (Square/X) or Button 3 (Triangle/Y)
-        // Check for robust button pressure threshold (> 0.5) to avoid analog trigger/drift loop
-        const btnReload2 = activeGamepad.buttons[2];
-        const btnReload3 = activeGamepad.buttons[3];
-        const isReloadPressed = (btnReload2 && (btnReload2.pressed || btnReload2.value > 0.5)) ||
-                                (btnReload3 && (btnReload3.pressed || btnReload3.value > 0.5));
-        if (isReloadPressed) {
+        if (btnDrop && (btnDrop.pressed || btnDrop.value > 0.5)) {
+            this.actions.dropWeapon = true;
+        }
+
+        // Support Reload Action on Gamepad
+        const btnReload = activeGamepad.buttons[this.gamepadBindings.reload !== undefined ? this.gamepadBindings.reload : 2];
+        if (btnReload && (btnReload.pressed || btnReload.value > 0.5)) {
             this.actions.reload = true;
         }
 
@@ -1700,7 +1715,6 @@ class InputManager {
             this.actions.heal = true;
         }
 
-        const btnLB = activeGamepad.buttons[4];
         if (btnLB && (btnLB.pressed || btnLB.value > 0.5) && !this.wasLBPressed) {
             this.actions.bumperLeft = true;
             this.wasLBPressed = true;
@@ -1708,7 +1722,6 @@ class InputManager {
             this.wasLBPressed = false;
         }
 
-        const btnRB = activeGamepad.buttons[5];
         if (btnRB && (btnRB.pressed || btnRB.value > 0.5) && !this.wasRBPressed) {
             this.actions.bumperRight = true;
             this.wasRBPressed = true;
@@ -1717,6 +1730,196 @@ class InputManager {
         }
 
         return true;
+    }
+
+    initGamepadCustomizer() {
+        // Load custom bindings if present
+        const saved = localStorage.getItem('lego_contra_gamepad_bindings');
+        if (saved) {
+            try {
+                this.gamepadBindings = JSON.parse(saved);
+            } catch (e) {
+                console.error("Error loading gamepad bindings:", e);
+            }
+        } else {
+            // Auto detect PlayStation/Nintendo on startup to offer nice fallback defaults
+            let detectedSwap = false;
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i] && gamepads[i].connected && gamepads[i].id) {
+                    const id = gamepads[i].id.toLowerCase();
+                    const isXbox = id.includes('xbox') || id.includes('microsoft') || id.includes('xinput') || id.includes('360');
+                    const isPSOrNintendo = id.includes('sony') || id.includes('playstation') || 
+                                           id.includes('dualshock') || id.includes('dualsense') || 
+                                           id.includes('nintendo') || id.includes('switch') || 
+                                           id.includes('pro controller') || id.includes('joy-con') ||
+                                           (id.includes('wireless controller') && !isXbox);
+                    if (isPSOrNintendo && !isXbox) {
+                        detectedSwap = true;
+                        break;
+                    }
+                }
+            }
+            if (detectedSwap) {
+                this.gamepadBindings = { shoot: 5, bumperRight: 7, bumperLeft: 6, startGame: 9, interact: 0, dropWeapon: 13, reload: 2 };
+            } else {
+                this.gamepadBindings = { shoot: 7, bumperRight: 5, bumperLeft: 4, startGame: 9, interact: 0, dropWeapon: 13, reload: 2 };
+            }
+        }
+
+        // Dynamically toggle the calibration button based on gamepad connection on startup
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        let anyConnected = false;
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i] && gamepads[i].connected) {
+                anyConnected = true;
+                break;
+            }
+        }
+        const gpBtn = document.getElementById('btn-customize-gamepad');
+        if (gpBtn) {
+            gpBtn.style.display = anyConnected ? 'block' : 'none';
+        }
+
+        this.gamepadCustomizerOpen = false;
+        this.listeningAction = null;
+
+        // Customizer open button click
+        if (gpBtn) {
+            gpBtn.onclick = () => {
+                try { sfx.playClick(); } catch(e){}
+                this.openGamepadCustomizer();
+            };
+        }
+
+        // Save & Exit button click
+        const saveBtn = document.getElementById('btn-gp-save');
+        if (saveBtn) {
+            saveBtn.onclick = () => {
+                try { sfx.playClick(); } catch(e){}
+                this.closeGamepadCustomizer();
+            };
+        }
+
+        // Reset button click
+        const resetBtn = document.getElementById('btn-gp-reset');
+        if (resetBtn) {
+            resetBtn.onclick = () => {
+                try { sfx.playClick(); } catch(e){}
+                this.resetGamepadBindings();
+            };
+        }
+
+        // Bind buttons clicks
+        const bindButtons = document.querySelectorAll('.gp-bind-btn');
+        bindButtons.forEach((btn) => {
+            btn.onclick = () => {
+                try { sfx.playClick(); } catch(e){}
+                // Clear any other listening states
+                bindButtons.forEach(b => b.textContent = 'BIND');
+                
+                const action = btn.dataset.action;
+                this.listeningAction = action;
+                btn.textContent = 'LISTENING...';
+            };
+        });
+    }
+
+    openGamepadCustomizer() {
+        this.gamepadCustomizerOpen = true;
+        this.listeningAction = null;
+        this.updateGamepadLabels();
+        
+        const modal = document.getElementById('gamepad-customizer-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            modal.classList.remove('hidden');
+        }
+    }
+
+    closeGamepadCustomizer() {
+        this.gamepadCustomizerOpen = false;
+        this.listeningAction = null;
+        
+        const modal = document.getElementById('gamepad-customizer-modal');
+        if (modal) {
+            modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+
+        localStorage.setItem('lego_contra_gamepad_bindings', JSON.stringify(this.gamepadBindings));
+    }
+
+    resetGamepadBindings() {
+        let detectedSwap = false;
+        const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+        for (let i = 0; i < gamepads.length; i++) {
+            if (gamepads[i] && gamepads[i].connected && gamepads[i].id) {
+                const id = gamepads[i].id.toLowerCase();
+                const isXbox = id.includes('xbox') || id.includes('microsoft') || id.includes('xinput') || id.includes('360');
+                const isPSOrNintendo = id.includes('sony') || id.includes('playstation') || 
+                                       id.includes('dualshock') || id.includes('dualsense') || 
+                                       id.includes('nintendo') || id.includes('switch') || 
+                                       id.includes('pro controller') || id.includes('joy-con') ||
+                                       (id.includes('wireless controller') && !isXbox);
+                if (isPSOrNintendo && !isXbox) {
+                    detectedSwap = true;
+                    break;
+                }
+            }
+        }
+
+        if (detectedSwap) {
+            this.gamepadBindings = { shoot: 5, bumperRight: 7, bumperLeft: 6, startGame: 9, interact: 0, dropWeapon: 13, reload: 2 };
+        } else {
+            this.gamepadBindings = { shoot: 7, bumperRight: 5, bumperLeft: 4, startGame: 9, interact: 0, dropWeapon: 13, reload: 2 };
+        }
+
+        this.listeningAction = null;
+        const bindButtons = document.querySelectorAll('.gp-bind-btn');
+        bindButtons.forEach(b => b.textContent = 'BIND');
+
+        this.updateGamepadLabels();
+        localStorage.removeItem('lego_contra_gamepad_bindings');
+    }
+
+    updateGamepadLabels() {
+        const labels = {
+            shoot: document.getElementById('bind-lbl-shoot'),
+            bumperRight: document.getElementById('bind-lbl-bumperRight'),
+            bumperLeft: document.getElementById('bind-lbl-bumperLeft'),
+            startGame: document.getElementById('bind-lbl-startGame'),
+            interact: document.getElementById('bind-lbl-interact'),
+            dropWeapon: document.getElementById('bind-lbl-dropWeapon'),
+            reload: document.getElementById('bind-lbl-reload')
+        };
+        
+        const getButtonName = (idx) => {
+            if (idx === undefined) return "NOT BOUND";
+            if (idx === 0) return "Button 0 (A / Cross)";
+            if (idx === 1) return "Button 1 (B / Circle)";
+            if (idx === 2) return "Button 2 (X / Square)";
+            if (idx === 3) return "Button 3 (Y / Triangle)";
+            if (idx === 4) return "Button 4 (LB / L1)";
+            if (idx === 5) return "Button 5 (RB / R1)";
+            if (idx === 6) return "Button 6 (LT / L2)";
+            if (idx === 7) return "Button 7 (RT / R2)";
+            if (idx === 8) return "Button 8 (Select/Share)";
+            if (idx === 9) return "Button 9 (Start/Options)";
+            if (idx === 12) return "Button 12 (D-PAD UP)";
+            if (idx === 13) return "Button 13 (D-PAD DOWN)";
+            if (idx === 14) return "Button 14 (D-PAD LEFT)";
+            if (idx === 15) return "Button 15 (D-PAD RIGHT)";
+            return "Button " + idx;
+        };
+
+        if (labels.shoot) labels.shoot.textContent = getButtonName(this.gamepadBindings.shoot);
+        if (labels.bumperRight) labels.bumperRight.textContent = getButtonName(this.gamepadBindings.bumperRight);
+        if (labels.bumperLeft) labels.bumperLeft.textContent = getButtonName(this.gamepadBindings.bumperLeft);
+        if (labels.startGame) labels.startGame.textContent = getButtonName(this.gamepadBindings.startGame);
+        if (labels.interact) labels.interact.textContent = getButtonName(this.gamepadBindings.interact);
+        if (labels.dropWeapon) labels.dropWeapon.textContent = getButtonName(this.gamepadBindings.dropWeapon);
+        if (labels.reload) labels.reload.textContent = getButtonName(this.gamepadBindings.reload);
     }
 
     update(camera, player) {
@@ -2066,7 +2269,7 @@ class Player extends Entity {
         }
 
         if (this.state === 'plane') {
-            if (input.actions.eject) {
+            if (input.actions.eject && this.survivalTime > 0.8) {
                 this.state = 'parachute';
                 this.parachuteAltitude = 250;
                 sfx.playLegoRattle();
@@ -5916,6 +6119,9 @@ class GameDirector {
             this.winnerWinner = false;
             this.matchEnding = false;
             this.matchTime = 0;
+            if (this.input) {
+                this.input.gamepadEjectBlocked = true;
+            }
             this.bullets = [];
             this.entities = [];
             
@@ -6097,6 +6303,9 @@ class GameDirector {
         this.winnerWinner = false;
         this.matchEnding = false;
         this.bestTeamRank = 99;
+        if (this.input) {
+            this.input.gamepadEjectBlocked = true;
+        }
 
         // Dynamic Map Scaling - Scaled up 3x in dimensions (9x in surface area)
         let calculatedMapSize = 10800;
@@ -6212,6 +6421,7 @@ class GameDirector {
     ejectPlayer() {
         try {
             if (this.gameState === 'combat') return;
+            if (this.matchTime < 0.8) return; // Prevent accidental eject at match start
             if (this.player && (this.player.state === 'plane' || this.player.state === 'parachute')) {
                 this.player.state = 'parachute';
                 this.player.parachuteAltitude = 250;
