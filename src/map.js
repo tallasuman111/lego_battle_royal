@@ -3,6 +3,10 @@ import { fx } from './particles.js';
 // Procedural Lego Island Map Generator, collision engine, and Battle Royale zone controller
 export class GameMap {
     constructor(size = 3600) {
+        this.setSize(size);
+    }
+
+    setSize(size) {
         this.size = size;
         this.half = size / 2;
         
@@ -11,10 +15,10 @@ export class GameMap {
         
         // Sectors (Procedural design parameters)
         this.sectors = [
-            { name: 'LEGO CITY CORE', x: size * 0.35, y: size * 0.35, r: 400, type: 'city' },
-            { name: 'BRICK YARDS', x: size * 0.7, y: size * 0.3, r: 350, type: 'crates' },
-            { name: 'CASTLE RUINS', x: size * 0.3, y: size * 0.7, r: 350, type: 'ruins' },
-            { name: 'PINE FOREST HILLS', x: size * 0.65, y: size * 0.68, r: 400, type: 'forest' }
+            { name: 'LEGO CITY CORE', x: size * 0.35, y: size * 0.35, r: size * (400 / 3600), type: 'city' },
+            { name: 'BRICK YARDS', x: size * 0.7, y: size * 0.3, r: size * (350 / 3600), type: 'crates' },
+            { name: 'CASTLE RUINS', x: size * 0.3, y: size * 0.7, r: size * (350 / 3600), type: 'ruins' },
+            { name: 'PINE FOREST HILLS', x: size * 0.65, y: size * 0.68, r: size * (400 / 3600), type: 'forest' }
         ];
 
         this.buildings = [];
@@ -48,19 +52,25 @@ export class GameMap {
                 const count = 6;
                 for (let i = 0; i < count; i++) {
                     const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-                    const dist = Math.random() * sec.r * 0.7;
+                    const dist = Math.random() * sec.r * 0.75;
                     const bx = sec.x + Math.cos(angle) * dist;
                     const by = sec.y + Math.sin(angle) * dist;
                     
                     const w = 120 + Math.floor(Math.random() * 3) * 40;
                     const h = 120 + Math.floor(Math.random() * 3) * 40;
                     
-                    this.createBuilding(bx, by, w, h, '#7f8c8d', 1); // Gray modern buildings
+                    if (this.isPointOnIsland(bx, by)) {
+                        // Enforce a 60px distance between city buildings so players can walk between them
+                        if (!this.checkBuildingOverlap(bx, by, w, h, 60)) {
+                            this.createBuilding(bx, by, w, h, '#7f8c8d', 1);
+                        }
+                    }
                 }
             } else if (sec.type === 'crates') {
-                // Large warehouse and lots of colored brick container crates
+                // Lego warehouses / container yards
                 this.createBuilding(sec.x, sec.y, 250, 150, '#34495e', 2);
                 
+                // Scatter modular crates inside the yard
                 const crateColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#95a5a6'];
                 for (let i = 0; i < 35; i++) {
                     const a = Math.random() * Math.PI * 2;
@@ -69,39 +79,44 @@ export class GameMap {
                     const cy = sec.y + Math.sin(a) * d;
                     
                     if (this.isPointOnIsland(cx, cy)) {
-                        this.obstacles.push({
-                            x: cx, y: cy,
-                            w: 32, h: 32,
-                            type: 'crate',
-                            color: crateColors[Math.floor(Math.random() * crateColors.length)]
-                        });
+                        if (!this.checkBuildingCollision(cx, cy, 45)) {
+                            this.obstacles.push({
+                                x: cx, y: cy,
+                                w: 32, h: 32,
+                                type: 'crate',
+                                color: crateColors[Math.floor(Math.random() * crateColors.length)]
+                            });
+                        }
                     }
                 }
             } else if (sec.type === 'ruins') {
-                // Crumbling old brick castle wall layouts
+                // Stone Lego walls and old brick pillars
                 const wallColors = ['#7f8c8d', '#95a5a6', '#5d6d7e'];
                 for (let i = 0; i < 8; i++) {
-                    const rx = sec.x + (Math.random() - 0.5) * sec.r * 1.2;
-                    const ry = sec.y + (Math.random() - 0.5) * sec.r * 1.2;
+                    const rx = sec.x + (Math.random() - 0.5) * sec.r * 1.25;
+                    const ry = sec.y + (Math.random() - 0.5) * sec.r * 1.25;
                     const rw = 20 + Math.random() * 140;
                     const rh = 20 + Math.random() * 140;
                     
                     if (this.isPointOnIsland(rx, ry)) {
-                        this.buildings.push({
-                            x: rx, y: ry,
-                            w: rw, h: rh,
-                            color: wallColors[Math.floor(Math.random() * wallColors.length)],
-                            type: 'ruin',
-                            walls: [
-                                { x: rx - rw/2, y: ry - rh/2, w: rw, h: 16 },
-                                { x: rx - rw/2, y: ry + rh/2 - 16, w: rw, h: 16 }
-                            ]
-                        });
+                        // Enforce a 50px clearance for ruins to avoid overlaps
+                        if (!this.checkBuildingOverlap(rx, ry, rw, rh, 50)) {
+                            this.buildings.push({
+                                x: rx, y: ry,
+                                w: rw, h: rh,
+                                color: wallColors[Math.floor(Math.random() * wallColors.length)],
+                                type: 'ruin',
+                                walls: [
+                                    { x: rx - rw/2, y: ry - rh/2, w: rw, h: 16 },
+                                    { x: rx - rw/2, y: ry + rh/2 - 16, w: rw, h: 16 }
+                                ]
+                            });
+                        }
                     }
                 }
             } else if (sec.type === 'forest') {
-                // Massive amount of trees and small lego cabins
-                this.createBuilding(sec.x, sec.y, 100, 100, '#d35400', 0.5); // Wood cabin
+                // A cluster of green pine trees
+                this.createBuilding(sec.x, sec.y, 100, 100, '#d35400', 0.5);
                 
                 for (let i = 0; i < 60; i++) {
                     const a = Math.random() * Math.PI * 2;
@@ -110,25 +125,28 @@ export class GameMap {
                     const ty = sec.y + Math.sin(a) * d;
 
                     if (this.isPointOnIsland(tx, ty)) {
-                        this.obstacles.push({
-                            x: tx, y: ty,
-                            w: 24, h: 24, // Collision size
-                            type: 'tree',
-                            color: '#27ae60'
-                        });
+                        if (!this.checkBuildingCollision(tx, ty, 45)) {
+                            this.obstacles.push({
+                                x: tx, y: ty,
+                                w: 24, h: 24,
+                                type: 'tree',
+                                color: '#27ae60'
+                            });
+                        }
                     }
                 }
             }
         });
 
-        // 2. Scatter general wilderness trees and obstacles across the island
-        for (let i = 0; i < 180; i++) {
+        // 2. Scatter general wilderness wilderness trees and obstacles across the island
+        const obstacleCount = Math.floor(180 * (this.size / 3600));
+        for (let i = 0; i < obstacleCount; i++) {
             const rx = (Math.random() - 0.5) * this.size * 0.9 + this.half;
             const ry = (Math.random() - 0.5) * this.size * 0.9 + this.half;
 
             if (this.isPointOnIsland(rx, ry)) {
                 // Ensure we don't spawn right inside an existing building
-                if (!this.checkBuildingCollision(rx, ry, 30)) {
+                if (!this.checkBuildingCollision(rx, ry, 45)) {
                     const isTree = Math.random() > 0.3;
                     if (isTree) {
                         this.obstacles.push({
@@ -162,7 +180,8 @@ export class GameMap {
         });
 
         // Add some loot in the open forest/crates sectors too
-        for (let i = 0; i < 40; i++) {
+        const generalLootCount = Math.floor(40 * (this.size / 3600));
+        for (let i = 0; i < generalLootCount; i++) {
             const rx = (Math.random() - 0.5) * this.size * 0.8 + this.half;
             const ry = (Math.random() - 0.5) * this.size * 0.8 + this.half;
             if (this.isPointOnIsland(rx, ry) && !this.checkBuildingCollision(rx, ry, 25)) {

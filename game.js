@@ -3,6 +3,7 @@
 // Supports: Keyboard/Mouse, Gamepad API, Mobile Touch Joysticks
 // Works directly over file:// protocol (No server required!)
 // ============================================================================
+var director = null;
 
 // ============================================================================
 // 1. PROCEDURAL AUDIO SYNTHESIZER (Web Audio API)
@@ -305,6 +306,10 @@ class SoundController {
             osc.start(noteTime);
             osc.stop(noteTime + 0.16);
         });
+    }
+
+    playAnnouncement() {
+        this.playLoot();
     }
 
     playHeal() {
@@ -878,6 +883,7 @@ class InputManager {
         this.initKeyboardMouse();
         this.initTouchControls();
         this.initGamepad();
+        this.applySavedHUDLayout();
     }
 
     triggerDeviceSwitch(type) {
@@ -994,7 +1000,10 @@ class InputManager {
             this.actions.touchActive = true;
             this.triggerDeviceSwitch('mobile');
             const touchControls = document.getElementById('touch-controls');
-            if (touchControls) touchControls.classList.add('active');
+            if (touchControls) {
+                touchControls.classList.add('active');
+                touchControls.style.display = ''; // Clear inline styles so class-defined display works!
+            }
             const ctrlHelp = document.getElementById('controls-help');
             if (ctrlHelp) ctrlHelp.classList.add('hidden');
         };
@@ -1099,15 +1108,25 @@ class InputManager {
                     if (sprintIndicator) sprintIndicator.classList.remove('active');
                 }
 
-                // Reset joystick container back to its default stylesheet-defined bottom-left position
+                // Reset joystick container back to its default customized position
                 const container = document.getElementById('joystick-move-container');
                 if (container) {
-                    container.style.position = '';
-                    container.style.left = '';
-                    container.style.top = '';
-                    container.style.bottom = '';
-                    container.style.transform = '';
-                    container.style.opacity = '';
+                    const item = this.hudLayout && this.hudLayout['joystick-move-container'];
+                    if (item) {
+                        container.style.position = 'absolute';
+                        container.style.left = `${item.x}%`;
+                        container.style.top = `${item.y}%`;
+                        container.style.bottom = 'auto';
+                        container.style.transform = `translate(-50%, -50%) scale(${item.scale})`;
+                        container.style.opacity = '';
+                    } else {
+                        container.style.position = '';
+                        container.style.left = '';
+                        container.style.top = '';
+                        container.style.bottom = '';
+                        container.style.transform = '';
+                        container.style.opacity = '';
+                    }
                 }
             };
 
@@ -1124,7 +1143,6 @@ class InputManager {
             this.aimJoy.startX = rect.left + rect.width / 2;
             this.aimJoy.startY = rect.top + rect.height / 2;
             this.aimJoy.identifier = touch.identifier;
-            this.isFiring = true;
         });
 
         joyAim.addEventListener('touchmove', (e) => {
@@ -1152,7 +1170,6 @@ class InputManager {
                         this.aimY = Math.sin(worldAngle);
                         this.aimAngle = worldAngle;
                         this.isAiming = true;
-                        this.isFiring = true;
                     }
 
                     const knob = document.getElementById('joystick-aim-knob');
@@ -1167,7 +1184,6 @@ class InputManager {
             this.aimJoy.active = false;
             this.aimJoy.x = 0;
             this.aimJoy.y = 0;
-            this.isFiring = false;
             const knob = document.getElementById('joystick-aim-knob');
             if (knob) knob.style.transform = 'translate(0px, 0px)';
         };
@@ -1180,6 +1196,7 @@ class InputManager {
         if (btnFire) {
             btnFire.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                showTouchUI();
                 this.isFiring = true;
             });
             btnFire.addEventListener('touchend', (e) => {
@@ -1231,6 +1248,216 @@ class InputManager {
                 e.preventDefault();
                 this.actions.toggleView = true;
             });
+        }
+
+        // Touch Layout Customization Logic & Drag-and-Drop Editor
+        const customizableIds = [
+            'joystick-move-container',
+            'joystick-aim',
+            't-btn-fire',
+            't-btn-reload',
+            't-btn-heal',
+            't-btn-interact',
+            't-btn-eject'
+        ];
+
+        this.selectedHUDElement = null;
+        this.draggingHUDElement = null;
+        this.isCustomizingHUD = false;
+
+        customizableIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            
+            const handleDragStart = (e) => {
+                if (!this.isCustomizingHUD) return;
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Highlight selection visually
+                customizableIds.forEach(cid => {
+                    const cel = document.getElementById(cid);
+                    if (cel) cel.classList.remove('hud-element-selected');
+                });
+                el.classList.add('hud-element-selected');
+                
+                this.selectedHUDElement = el;
+                this.draggingHUDElement = el;
+                
+                const bar = document.getElementById('hud-customize-bar');
+                if (bar) bar.classList.remove('hidden');
+                
+                const nameEl = document.getElementById('customize-element-name');
+                if (nameEl) {
+                    const names = {
+                        'joystick-move-container': 'MOVEMENT JOYSTICK',
+                        'joystick-aim': 'AIMING JOYSTICK',
+                        't-btn-fire': 'SHOOT BUTTON',
+                        't-btn-reload': 'RELOAD BUTTON',
+                        't-btn-heal': 'HEAL BUTTON',
+                        't-btn-interact': 'INTERACT BUTTON',
+                        't-btn-eject': 'EJECT BUTTON'
+                    };
+                    nameEl.textContent = names[id] || id.toUpperCase();
+                }
+                
+                const slider = document.getElementById('customize-scale-slider');
+                const valEl = document.getElementById('customize-scale-val');
+                if (slider && valEl) {
+                    const currentScale = this.hudLayout[id]?.scale || 1.0;
+                    slider.value = Math.round(currentScale * 100);
+                    valEl.textContent = `${slider.value}%`;
+                }
+            };
+            
+            el.addEventListener('touchstart', handleDragStart, { passive: false });
+            el.addEventListener('mousedown', handleDragStart);
+        });
+
+        const handleDragMove = (e) => {
+            if (!this.isCustomizingHUD || !this.draggingHUDElement) return;
+            e.preventDefault();
+            
+            const el = this.draggingHUDElement;
+            const id = el.id;
+            
+            const clientX = (e.touches && e.touches.length > 0) ? e.touches[0].clientX : e.clientX;
+            const clientY = (e.touches && e.touches.length > 0) ? e.touches[0].clientY : e.clientY;
+            
+            let xPercent = (clientX / window.innerWidth) * 100;
+            let yPercent = (clientY / window.innerHeight) * 100;
+            
+            xPercent = Math.max(5, Math.min(95, xPercent));
+            yPercent = Math.max(5, Math.min(95, yPercent));
+            
+            if (!this.hudLayout) this.hudLayout = {};
+            if (!this.hudLayout[id]) {
+                this.hudLayout[id] = { x: xPercent, y: yPercent, scale: 1.0 };
+            } else {
+                this.hudLayout[id].x = xPercent;
+                this.hudLayout[id].y = yPercent;
+            }
+            
+            el.style.position = 'absolute';
+            el.style.left = `${xPercent}%`;
+            el.style.top = `${yPercent}%`;
+            el.style.right = 'auto';
+            el.style.bottom = 'auto';
+            el.style.transform = `translate(-50%, -50%) scale(${this.hudLayout[id].scale})`;
+        };
+        
+        window.addEventListener('touchmove', handleDragMove, { passive: false });
+        window.addEventListener('mousemove', handleDragMove);
+        
+        const handleDragEnd = () => {
+            if (!this.isCustomizingHUD) return;
+            this.draggingHUDElement = null;
+        };
+        
+        window.addEventListener('touchend', handleDragEnd);
+        window.addEventListener('mouseup', handleDragEnd);
+
+        // Scale Slider Listener
+        const slider = document.getElementById('customize-scale-slider');
+        if (slider) {
+            slider.addEventListener('input', (e) => {
+                if (!this.isCustomizingHUD || !this.selectedHUDElement) return;
+                const el = this.selectedHUDElement;
+                const id = el.id;
+                const val = parseInt(e.target.value);
+                const scale = val / 100;
+                
+                const valEl = document.getElementById('customize-scale-val');
+                if (valEl) valEl.textContent = `${val}%`;
+                
+                if (!this.hudLayout) this.hudLayout = {};
+                if (!this.hudLayout[id]) {
+                    this.hudLayout[id] = { x: 50, y: 50, scale: scale };
+                } else {
+                    this.hudLayout[id].scale = scale;
+                }
+                
+                el.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            });
+        }
+
+        // Action button listeners
+        const btnReset = document.getElementById('btn-hud-reset');
+        if (btnReset) {
+            btnReset.addEventListener('click', () => {
+                sfx.playClick();
+                this.resetHUDLayoutToDefault();
+                for (const id in this.hudLayout) {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const item = this.hudLayout[id];
+                        el.style.position = 'absolute';
+                        el.style.left = `${item.x}%`;
+                        el.style.top = `${item.y}%`;
+                        el.style.right = 'auto';
+                        el.style.bottom = 'auto';
+                        el.style.transform = `translate(-50%, -50%) scale(${item.scale})`;
+                        el.classList.remove('hud-element-selected');
+                    }
+                }
+                const bar = document.getElementById('hud-customize-bar');
+                if (bar) bar.classList.add('hidden');
+                this.selectedHUDElement = null;
+            });
+        }
+        
+        const btnSave = document.getElementById('btn-hud-save');
+        if (btnSave) {
+            btnSave.addEventListener('click', () => {
+                sfx.playClick();
+                localStorage.setItem('lego_contra_hud_layout', JSON.stringify(this.hudLayout));
+                
+                this.isCustomizingHUD = false;
+                const overlay = document.getElementById('touch-controls');
+                if (overlay) {
+                    overlay.classList.remove('hud-customizing');
+                    customizableIds.forEach(cid => {
+                        const cel = document.getElementById(cid);
+                        if (cel) cel.classList.remove('hud-element-selected');
+                    });
+                    if (this.director && this.director.gameState !== 'combat') {
+                        overlay.classList.remove('active');
+                        overlay.style.display = 'none';
+                    }
+                }
+                
+                const bar = document.getElementById('hud-customize-bar');
+                if (bar) bar.classList.add('hidden');
+                
+                const menu = document.getElementById('menu-screen');
+                if (menu) menu.classList.remove('hidden');
+                
+                this.selectedHUDElement = null;
+            });
+        }
+
+        // Lobby customize button click
+        const btnCustomize = document.getElementById('btn-customize-hud');
+        if (btnCustomize) {
+            btnCustomize.onclick = () => {
+                sfx.playClick();
+                this.isCustomizingHUD = true;
+                
+                const menu = document.getElementById('menu-screen');
+                if (menu) menu.classList.add('hidden');
+                
+                const overlay = document.getElementById('touch-controls');
+                if (overlay) {
+                    overlay.style.display = 'block';
+                    overlay.classList.add('active');
+                    overlay.classList.add('hud-customizing');
+                }
+                
+                const bar = document.getElementById('hud-customize-bar');
+                if (bar) bar.classList.add('hidden');
+                
+                this.selectedHUDElement = null;
+            };
         }
     }
 
@@ -1522,7 +1749,7 @@ class InputManager {
 
             if (this.aimJoy.active) {
                 this.isAiming = true;
-            } else if (currentDevice === 'mobile') {
+            } else if (currentDevice === 'mobile' || this.actions.touchActive) {
                 this.isAiming = false;
             } else if (player && camera) {
                 const canvas = document.getElementById('game-canvas');
@@ -1579,6 +1806,46 @@ class InputManager {
         this.actions.toggleView = false;
         this.actions.bumperLeft = false;
         this.actions.bumperRight = false;
+    }
+
+    applySavedHUDLayout() {
+        const saved = localStorage.getItem('lego_contra_hud_layout');
+        if (!saved) {
+            this.resetHUDLayoutToDefault();
+            return;
+        }
+        
+        try {
+            this.hudLayout = JSON.parse(saved);
+            for (const id in this.hudLayout) {
+                const element = document.getElementById(id);
+                if (element) {
+                    const item = this.hudLayout[id];
+                    element.style.position = 'absolute';
+                    element.style.left = `${item.x}%`;
+                    element.style.top = `${item.y}%`;
+                    element.style.right = 'auto';
+                    element.style.bottom = 'auto';
+                    element.style.transform = `translate(-50%, -50%) scale(${item.scale})`;
+                }
+            }
+        } catch (e) {
+            console.error("Failed to parse saved HUD layout:", e);
+            this.resetHUDLayoutToDefault();
+        }
+    }
+
+    resetHUDLayoutToDefault() {
+        localStorage.removeItem('lego_contra_hud_layout');
+        this.hudLayout = {
+            'joystick-move-container': { x: 15, y: 75, scale: 1.0 },
+            'joystick-aim': { x: 85, y: 75, scale: 1.0 },
+            't-btn-fire': { x: 70, y: 60, scale: 1.6 }, /* 1.6x Default Large fire button */
+            't-btn-reload': { x: 88, y: 48, scale: 1.0 },
+            't-btn-heal': { x: 78, y: 52, scale: 1.0 },
+            't-btn-interact': { x: 72, y: 82, scale: 1.0 },
+            't-btn-eject': { x: 85, y: 30, scale: 1.0 }
+        };
     }
 }
 
@@ -1655,6 +1922,7 @@ class Entity {
         this.speed = 3.2;
 
         this.username = username;
+        this.displayName = username;
         this.color = color;
         this.isPlayer = isPlayer;
 
@@ -1712,16 +1980,21 @@ class Entity {
             
             if (attacker && attacker !== this) {
                 attacker.kills++;
+            }
 
-                if (director.isOnline && (director.player === this || (director.isHost && this instanceof Bot))) {
-                    director.sendNetPacket({
-                        type: 'elimination',
-                        killedId: this.username,
-                        killerId: attacker.username,
-                        killedName: this.username,
-                        killerName: attacker.username
-                    });
-                }
+            if (director.isOnline && director.lobbyPlayers) {
+                const lp = director.lobbyPlayers.find(p => p.id === this.username);
+                if (lp) lp.dead = true;
+            }
+
+            if (director.isOnline && (director.player === this || (director.isHost && this instanceof Bot))) {
+                director.sendNetPacket({
+                    type: 'elimination',
+                    killedId: this.username,
+                    killerId: (attacker && attacker !== this) ? attacker.username : this.username,
+                    killedName: this.displayName || this.username,
+                    killerName: (attacker && attacker !== this) ? (attacker.displayName || attacker.username) : 'Safe Zone'
+                });
             }
         }
     }
@@ -1954,6 +2227,7 @@ class Player extends Entity {
             if (director.isOnline) {
                 director.sendNetPacket({
                     type: 'bullet_spawn',
+                    shooterId: this.username,
                     x: fireX,
                     y: fireY,
                     vx: vx,
@@ -2054,6 +2328,10 @@ class Player extends Entity {
                 map.loot = map.loot.filter((item) => item.id !== nearest.id);
 
                 if (director.isOnline) {
+                    director.sendNetPacket({
+                        type: 'loot_pickup',
+                        itemId: nearest.id
+                    });
                     director.sendHostLootSync();
                 }
             }
@@ -2135,6 +2413,10 @@ class Player extends Entity {
                 map.loot = map.loot.filter((item) => item.id !== nearest.id);
 
                 if (director.isOnline) {
+                    director.sendNetPacket({
+                        type: 'loot_pickup',
+                        itemId: nearest.id
+                    });
                     director.sendHostLootSync();
                 }
             }
@@ -2146,17 +2428,30 @@ class Player extends Entity {
         const w = this.weapons[this.activeWeaponIndex];
         if (!w) return;
 
-        map.loot.push({
+        const newItemId = Math.random().toString(36).substr(2, 9);
+        const newItem = {
             x: this.x + (Math.random() - 0.5) * 20,
             y: this.y + (Math.random() - 0.5) * 20,
-            id: Math.random().toString(36).substr(2, 9),
+            id: newItemId,
             spec: { type: 'weapon', id: w.id, name: w.name, color: w.color, ammo: w.currentAmmo },
             pulseTimer: 0
-        });
+        };
+
+        map.loot.push(newItem);
 
         this.weapons[this.activeWeaponIndex] = null;
         sfx.playClick();
         this.activeWeaponIndex = 0;
+
+        if (director.isOnline) {
+            director.sendNetPacket({
+                type: 'loot_drop',
+                item: newItem
+            });
+            if (director.isHost) {
+                director.sendHostLootSync();
+            }
+        }
     }
 }
 
@@ -2202,9 +2497,14 @@ class Bot extends Entity {
             this.aiTimer -= dt * 1000;
             if (this.aiTimer <= 0) {
                 this.state = 'parachute';
-                this.parachuteAltitude = 200 + Math.random() * 80;
-                this.targetX = this.x + (Math.random() - 0.5) * 300;
-                this.targetY = this.y + (Math.random() - 0.5) * 300;
+                this.parachuteAltitude = 220 + Math.random() * 80;
+                
+                // Drift widely from the plane axis towards other parts of the island
+                const mapRatio = Math.sqrt((map.size || 3600) / 3600);
+                const driftAngle = Math.random() * Math.PI * 2;
+                const driftDistance = (300 + Math.random() * 1200) * mapRatio;
+                this.targetX = this.x + Math.cos(driftAngle) * driftDistance;
+                this.targetY = this.y + Math.sin(driftAngle) * driftDistance;
             }
             return;
         }
@@ -2214,11 +2514,13 @@ class Bot extends Entity {
             const dy = this.targetY - this.y;
             const d = Math.sqrt(dx*dx + dy*dy);
             if (d > 10) {
-                this.x += (dx / d) * 1.5;
-                this.y += (dy / d) * 1.5;
+                // Bots glide faster if target is far, allowing high horizontal speed
+                const speed = Math.min(6.5, 2.0 + (d / 120));
+                this.x += (dx / d) * speed;
+                this.y += (dy / d) * speed;
             }
             
-            this.parachuteAltitude -= dt * 50;
+            this.parachuteAltitude -= dt * 45; // Descend slightly slower for bot glider
             if (this.parachuteAltitude <= 0) {
                 this.state = 'alive';
                 this.targetX = this.x;
@@ -2452,6 +2754,18 @@ class Bot extends Entity {
             const vy = Math.sin(spreadAngle) * weapon.bulletSpeed;
             
             spawnBullet(new Bullet(fireX, fireY, vx, vy, weapon, this));
+
+            if (director.isOnline && director.isHost) {
+                director.sendNetPacket({
+                    type: 'bullet_spawn',
+                    shooterId: this.username,
+                    x: fireX,
+                    y: fireY,
+                    vx: vx,
+                    vy: vy,
+                    weaponId: weapon.id
+                });
+            }
         }
 
         fx.spawnMuzzleFlash(fireX, fireY, this.angle);
@@ -2506,6 +2820,10 @@ class Bot extends Entity {
             map.loot = map.loot.filter((item) => item.id !== this.lootTarget.id);
 
             if (director.isOnline && director.isHost) {
+                director.sendNetPacket({
+                    type: 'loot_pickup',
+                    itemId: this.lootTarget.id
+                });
                 director.sendHostLootSync();
             }
         }
@@ -2519,16 +2837,29 @@ class Bot extends Entity {
 // 5. PROCEDURAL MAP GENERATOR AND BR BLUE ZONE
 // ============================================================================
 class GameMap {
-    constructor(size = 3600) {
+    constructor(size = 10800) {
+        this.seed = null;
+        this.seededRandomFn = null;
+        this.setSize(size);
+    }
+
+    random() {
+        if (this.seededRandomFn) {
+            return this.seededRandomFn();
+        }
+        return Math.random();
+    }
+
+    setSize(size) {
         this.size = size;
         this.half = size / 2;
         this.islandRadius = size * 0.42;
         
         this.sectors = [
-            { name: 'LEGO CITY CORE', x: size * 0.35, y: size * 0.35, r: 400, type: 'city' },
-            { name: 'BRICK YARDS', x: size * 0.7, y: size * 0.3, r: 350, type: 'crates' },
-            { name: 'CASTLE RUINS', x: size * 0.3, y: size * 0.7, r: 350, type: 'ruins' },
-            { name: 'PINE FOREST HILLS', x: size * 0.65, y: size * 0.68, r: 400, type: 'forest' }
+            { name: 'LEGO CITY CORE', x: size * 0.35, y: size * 0.35, r: size * (400 / 3600), type: 'city' },
+            { name: 'BRICK YARDS', x: size * 0.7, y: size * 0.3, r: size * (350 / 3600), type: 'crates' },
+            { name: 'CASTLE RUINS', x: size * 0.3, y: size * 0.7, r: size * (350 / 3600), type: 'ruins' },
+            { name: 'PINE FOREST HILLS', x: size * 0.65, y: size * 0.68, r: size * (400 / 3600), type: 'forest' }
         ];
 
         this.buildings = [];
@@ -2548,24 +2879,38 @@ class GameMap {
     }
 
     generate() {
+        if (this.seed !== undefined && this.seed !== null) {
+            let seed = this.seed;
+            this.seededRandomFn = function() {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        } else {
+            this.seededRandomFn = null;
+        }
+
         this.buildings = [];
         this.obstacles = [];
         this.loot = [];
 
+        const ratio = this.size / 3600;
+
         this.sectors.forEach((sec) => {
             if (sec.type === 'city') {
-                const count = 6;
+                const count = Math.floor(6 * Math.pow(ratio, 1.5));
                 for (let i = 0; i < count; i++) {
                     let bx, by, w, h;
                     let placed = false;
                     for (let attempt = 0; attempt < 50; attempt++) {
-                        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.5;
-                        const dist = Math.random() * sec.r * 0.75;
+                        const angle = (i / count) * Math.PI * 2 + this.random() * 0.5;
+                        const dist = this.random() * sec.r * 0.75;
                         bx = sec.x + Math.cos(angle) * dist;
                         by = sec.y + Math.sin(angle) * dist;
                         
-                        w = 120 + Math.floor(Math.random() * 3) * 40;
-                        h = 120 + Math.floor(Math.random() * 3) * 40;
+                        w = 120 + Math.floor(this.random() * 3) * 40;
+                        h = 120 + Math.floor(this.random() * 3) * 40;
                         
                         // Enforce a 60px distance between city buildings so players can walk between them
                         if (this.isPointOnIsland(bx, by) && !this.checkBuildingOverlap(bx, by, w, h, 60)) {
@@ -2581,9 +2926,10 @@ class GameMap {
                 this.createBuilding(sec.x, sec.y, 250, 150, '#34495e', 2);
                 
                 const crateColors = ['#e74c3c', '#3498db', '#f1c40f', '#2ecc71', '#95a5a6'];
-                for (let i = 0; i < 35; i++) {
-                    const a = Math.random() * Math.PI * 2;
-                    const d = Math.random() * sec.r * 0.8;
+                const count = Math.floor(35 * Math.pow(ratio, 1.5));
+                for (let i = 0; i < count; i++) {
+                    const a = this.random() * Math.PI * 2;
+                    const d = this.random() * sec.r * 0.8;
                     const cx = sec.x + Math.cos(a) * d;
                     const cy = sec.y + Math.sin(a) * d;
                     
@@ -2593,21 +2939,22 @@ class GameMap {
                                 x: cx, y: cy,
                                 w: 32, h: 32,
                                 type: 'crate',
-                                color: crateColors[Math.floor(Math.random() * crateColors.length)]
+                                color: crateColors[Math.floor(this.random() * crateColors.length)]
                             });
                         }
                     }
                 }
             } else if (sec.type === 'ruins') {
                 const wallColors = ['#7f8c8d', '#95a5a6', '#5d6d7e'];
-                for (let i = 0; i < 8; i++) {
+                const count = Math.floor(8 * Math.pow(ratio, 1.5));
+                for (let i = 0; i < count; i++) {
                     let rx, ry, rw, rh;
                     let placed = false;
                     for (let attempt = 0; attempt < 50; attempt++) {
-                        rx = sec.x + (Math.random() - 0.5) * sec.r * 1.25;
-                        ry = sec.y + (Math.random() - 0.5) * sec.r * 1.25;
-                        rw = 20 + Math.random() * 140;
-                        rh = 20 + Math.random() * 140;
+                        rx = sec.x + (this.random() - 0.5) * sec.r * 1.25;
+                        ry = sec.y + (this.random() - 0.5) * sec.r * 1.25;
+                        rw = 20 + this.random() * 140;
+                        rh = 20 + this.random() * 140;
                         
                         // Enforce a 50px clearance for ruins to avoid overlaps
                         if (this.isPointOnIsland(rx, ry) && !this.checkBuildingOverlap(rx, ry, rw, rh, 50)) {
@@ -2619,7 +2966,7 @@ class GameMap {
                         this.buildings.push({
                             x: rx, y: ry,
                             w: rw, h: rh,
-                            color: wallColors[Math.floor(Math.random() * wallColors.length)],
+                            color: wallColors[Math.floor(this.random() * wallColors.length)],
                             type: 'ruin',
                             walls: [
                                 { x: rx - rw/2, y: ry - rh/2, w: rw, h: 16 },
@@ -2631,9 +2978,10 @@ class GameMap {
             } else if (sec.type === 'forest') {
                 this.createBuilding(sec.x, sec.y, 100, 100, '#d35400', 0.5);
                 
-                for (let i = 0; i < 60; i++) {
-                    const a = Math.random() * Math.PI * 2;
-                    const d = Math.random() * sec.r * 0.9;
+                const count = Math.floor(60 * Math.pow(ratio, 1.5));
+                for (let i = 0; i < count; i++) {
+                    const a = this.random() * Math.PI * 2;
+                    const d = this.random() * sec.r * 0.9;
                     const tx = sec.x + Math.cos(a) * d;
                     const ty = sec.y + Math.sin(a) * d;
 
@@ -2651,19 +2999,20 @@ class GameMap {
             }
         });
 
-        for (let i = 0; i < 180; i++) {
-            const rx = (Math.random() - 0.5) * this.size * 0.9 + this.half;
-            const ry = (Math.random() - 0.5) * this.size * 0.9 + this.half;
+        const obstacleCount = Math.floor(180 * Math.pow(ratio, 1.5));
+        for (let i = 0; i < obstacleCount; i++) {
+            const rx = (this.random() - 0.5) * this.size * 0.9 + this.half;
+            const ry = (this.random() - 0.5) * this.size * 0.9 + this.half;
 
             if (this.isPointOnIsland(rx, ry)) {
                 if (!this.checkBuildingCollision(rx, ry, 45)) {
-                    const isTree = Math.random() > 0.3;
+                    const isTree = this.random() > 0.3;
                     if (isTree) {
                         this.obstacles.push({
                             x: rx, y: ry,
                             w: 24, h: 24,
                             type: 'tree',
-                            color: Math.random() > 0.4 ? '#27ae60' : '#2ecc71'
+                            color: this.random() > 0.4 ? '#27ae60' : '#2ecc71'
                         });
                     } else {
                         this.obstacles.push({
@@ -2680,15 +3029,16 @@ class GameMap {
         this.buildings.forEach((b) => {
             const lootCount = b.type === 'ruin' ? 2 : 4;
             for (let i = 0; i < lootCount; i++) {
-                const lx = b.x + (Math.random() - 0.5) * (b.w - 40);
-                const ly = b.y + (Math.random() - 0.5) * (b.h - 40);
+                const lx = b.x + (this.random() - 0.5) * (b.w - 40);
+                const ly = b.y + (this.random() - 0.5) * (b.h - 40);
                 this.spawnRandomLoot(lx, ly);
             }
         });
 
-        for (let i = 0; i < 40; i++) {
-            const rx = (Math.random() - 0.5) * this.size * 0.8 + this.half;
-            const ry = (Math.random() - 0.5) * this.size * 0.8 + this.half;
+        const generalLootCount = Math.floor(40 * Math.pow(ratio, 2));
+        for (let i = 0; i < generalLootCount; i++) {
+            const rx = (this.random() - 0.5) * this.size * 0.8 + this.half;
+            const ry = (this.random() - 0.5) * this.size * 0.8 + this.half;
             if (this.isPointOnIsland(rx, ry) && !this.checkBuildingCollision(rx, ry, 25)) {
                 this.spawnRandomLoot(rx, ry);
             }
@@ -2819,11 +3169,11 @@ class GameMap {
     }
 
     spawnRandomLoot(x, y) {
-        const roll = Math.random();
+        const roll = this.random();
         let item = null;
 
         if (roll < 0.25) {
-            const weaponRoll = Math.random();
+            const weaponRoll = this.random();
             if (weaponRoll < 0.22) {
                 item = { type: 'weapon', id: 'smg', name: 'LEGO SMG', color: '#e67e22', ammo: 90 };
             } else if (weaponRoll < 0.44) {
@@ -2836,10 +3186,10 @@ class GameMap {
                 item = { type: 'weapon', id: 'bricklauncher', name: 'Stud Launcher', color: '#d35400', ammo: 5 };
             }
         } else if (roll < 0.50) {
-            const ammoType = Math.random() > 0.5 ? 'rifle' : 'smg';
+            const ammoType = this.random() > 0.5 ? 'rifle' : 'smg';
             item = { type: 'ammo', id: ammoType, name: ammoType.toUpperCase() + ' Studs', qty: ammoType === 'rifle' ? 30 : 50, color: '#f1c40f' };
         } else if (roll < 0.70) {
-            const armorRoll = Math.random();
+            const armorRoll = this.random();
             if (armorRoll < 0.5) {
                 item = { type: 'armor', id: 'armor1', name: 'Helmet (Lvl 1)', shield: 30, color: '#bdc3c7' };
             } else if (armorRoll < 0.85) {
@@ -2848,7 +3198,7 @@ class GameMap {
                 item = { type: 'armor', id: 'armor3', name: 'Lego SpecOps (Lvl 3)', shield: 100, color: '#34495e' };
             }
         } else {
-            const medRoll = Math.random();
+            const medRoll = this.random();
             if (medRoll < 0.6) {
                 item = { type: 'med', id: 'medkit', name: 'Lego Red Brick', heal: 50, color: '#e74c3c' };
             } else {
@@ -2859,9 +3209,9 @@ class GameMap {
         if (item) {
             this.loot.push({
                 x, y,
-                id: Math.random().toString(36).substr(2, 9),
+                id: "item_" + Math.floor(this.random() * 10000000),
                 spec: item,
-                pulseTimer: Math.random() * Math.PI
+                pulseTimer: this.random() * Math.PI
             });
         }
     }
@@ -2998,8 +3348,8 @@ class GameMap {
         const nextR = this.size * ratios[index];
         
         const maxOffset = Math.max(0, this.blueZone.r - nextR);
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.random() * maxOffset * 0.7;
+        const angle = this.random() * Math.PI * 2;
+        const dist = this.random() * maxOffset * 0.7;
         
         this.whiteZone.x = this.blueZone.x + Math.cos(angle) * dist;
         this.whiteZone.y = this.blueZone.y + Math.sin(angle) * dist;
@@ -3061,10 +3411,15 @@ class GameMap {
         ctx.fill();
         ctx.restore();
         
+        // Active Camera Viewport Culling limit based on zoom
+        const cullLimit = Math.max(ctx.canvas.width, ctx.canvas.height) / camera.zoom + 120;
+
         ctx.save();
         ctx.fillStyle = cols.studs;
         for (let gx = 0; gx < this.size; gx += 120) {
+            if (Math.abs(gx - camera.x) > cullLimit) continue;
             for (let gy = 0; gy < this.size; gy += 120) {
+                if (Math.abs(gy - camera.y) > cullLimit) continue;
                 if (this.isPointOnIsland(gx, gy)) {
                     ctx.beginPath();
                     ctx.arc(gx, gy, 4, 0, Math.PI * 2);
@@ -3075,6 +3430,7 @@ class GameMap {
         ctx.restore();
 
         this.buildings.forEach((b) => {
+            if (Math.abs(b.x - camera.x) > cullLimit || Math.abs(b.y - camera.y) > cullLimit) return;
             ctx.save();
             ctx.fillStyle = '#5d6d7e';
             ctx.fillRect(b.x - b.w/2, b.y - b.h/2, b.w, b.h);
@@ -3116,6 +3472,7 @@ class GameMap {
         });
 
         this.obstacles.forEach((obs) => {
+            if (Math.abs(obs.x - camera.x) > cullLimit || Math.abs(obs.y - camera.y) > cullLimit) return;
             ctx.save();
             if (obs.type === 'tree') {
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
@@ -3183,9 +3540,12 @@ class GameMap {
         });
     }
 
-    drawLoot(ctx) {
+    drawLoot(ctx, camera) {
+        if (!camera) return;
+        const cullLimit = Math.max(ctx.canvas.width, ctx.canvas.height) / camera.zoom + 100;
         ctx.save();
         this.loot.forEach((item) => {
+            if (Math.abs(item.x - camera.x) > cullLimit || Math.abs(item.y - camera.y) > cullLimit) return;
             item.pulseTimer += 0.05;
             const floatOffset = Math.sin(item.pulseTimer) * 3;
             
@@ -3725,6 +4085,7 @@ class GraphicsEngine {
 // ============================================================================
 class GameDirector {
     constructor() {
+        window.director = this;
         this.canvas = document.getElementById('game-canvas');
         this.ctx = this.canvas.getContext('2d');
 
@@ -3754,6 +4115,8 @@ class GameDirector {
         this.aliveCount = 20;
         this.matchTime = 0;
         this.winnerWinner = false;
+        this.matchEnding = false;
+        this.pendingInviteFriend = null;
 
         this.lastTime = performance.now();
 
@@ -3791,7 +4154,7 @@ class GameDirector {
         const startBtn = document.getElementById('btn-start-game');
         if (startBtn) {
             startBtn.textContent = 'START MATCH';
-            startBtn.addEventListener('click', () => {
+            startBtn.onclick = () => {
                 sfx.playClick();
                 this.triggerFullscreen();
                 const modeVal = document.querySelector('#mode-toggle .toggle-btn.selected').dataset.value;
@@ -3813,13 +4176,14 @@ class GameDirector {
                 } else {
                     this.startMatchOffline();
                 }
-            });
+            };
         }
 
         const modeBtns = document.querySelectorAll('#mode-toggle .toggle-btn');
         modeBtns.forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 sfx.playClick();
+                this.triggerFullscreen();
                 modeBtns.forEach((b) => b.classList.remove('selected'));
                 btn.classList.add('selected');
                 const isOnline = btn.dataset.value === 'online';
@@ -3836,7 +4200,11 @@ class GameDirector {
                 if (isOnline) {
                     this.connectSocket();
                 } else {
-                    this.disconnectSocket();
+                    // Only disconnect socket on switching to offline if they are NOT logged in!
+                    // If they are logged in, keep the socket alive so they stay online in the social system.
+                    if (!this.user) {
+                        this.disconnectSocket();
+                    }
                 }
                 
                 const teamVal = document.querySelector('#team-toggle .toggle-btn.selected').dataset.value;
@@ -3874,17 +4242,63 @@ class GameDirector {
                 }
             });
         });
-
         this.checkServerStatus();
-
-
+        this.initSocialSystem();
 
         document.getElementById('btn-restart').addEventListener('click', () => {
             sfx.playClick();
+            this.triggerFullscreen();
+            if (this.isOnline) {
+                const startBtn = document.getElementById('btn-start-game');
+                if (startBtn) {
+                    startBtn.textContent = 'WAITING FOR LOBBY SYNC...';
+                    startBtn.disabled = true;
+                }
+                this.sendNetPacket({
+                    type: 'return_to_lobby'
+                });
+            }
             this.resultsScreen.classList.add('hidden');
             this.menuScreen.classList.remove('hidden');
             this.gameState = 'menu';
         });
+
+        const spectateBtn = document.getElementById('btn-spectate');
+        if (spectateBtn) {
+            spectateBtn.addEventListener('click', () => {
+                sfx.playClick();
+                this.resultsScreen.classList.add('hidden');
+                const banner = document.getElementById('spectator-banner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                }
+            });
+        }
+
+        const spectatorExitBtn = document.getElementById('btn-spectator-exit');
+        if (spectatorExitBtn) {
+            spectatorExitBtn.addEventListener('click', () => {
+                sfx.playClick();
+                this.triggerFullscreen();
+                const banner = document.getElementById('spectator-banner');
+                if (banner) {
+                    banner.classList.add('hidden');
+                }
+                if (this.isOnline) {
+                    const startBtn = document.getElementById('btn-start-game');
+                    if (startBtn) {
+                        startBtn.textContent = 'WAITING FOR LOBBY SYNC...';
+                        startBtn.disabled = true;
+                    }
+                    this.sendNetPacket({
+                        type: 'return_to_lobby'
+                    });
+                }
+                this.resultsScreen.classList.add('hidden');
+                this.menuScreen.classList.remove('hidden');
+                this.gameState = 'menu';
+            });
+        }
 
         for (let i = 1; i <= 3; i++) {
             const slot = document.getElementById(`w-slot-${i}`);
@@ -3936,6 +4350,584 @@ class GameDirector {
         window.addEventListener('resize', handleResize);
         window.addEventListener('orientationchange', handleResize);
         this.resizeCanvas();
+    }
+
+    initSocialSystem() {
+        this.user = null;
+        this.friends = [];
+        this.activeInvites = [];
+
+        // Toggle Expand/Collapse Drawer Panel
+        const drawer = document.getElementById('social-customization-drawer');
+        const toggleBtn = document.getElementById('social-drawer-toggle');
+        if (toggleBtn && drawer) {
+            toggleBtn.addEventListener('click', () => {
+                sfx.playClick();
+                drawer.classList.toggle('expanded');
+            });
+        }
+
+        const mobileSocialBtn = document.getElementById('btn-mobile-social');
+        if (mobileSocialBtn && drawer) {
+            mobileSocialBtn.addEventListener('click', () => {
+                sfx.playClick();
+                drawer.classList.toggle('expanded');
+            });
+        }
+
+        // Tab Switching
+        const tabs = document.querySelectorAll('.drawer-tab');
+        const panes = document.querySelectorAll('.tab-pane');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                sfx.playClick();
+                tabs.forEach(t => t.classList.remove('active'));
+                panes.forEach(p => p.classList.remove('active'));
+                
+                tab.classList.add('active');
+                const tabId = tab.dataset.tab;
+                const targetPane = document.getElementById(`pane-${tabId}`);
+                if (targetPane) {
+                    targetPane.classList.add('active');
+                }
+            });
+        });
+
+        // Account Login & Registration click bindings
+        const loginBtn = document.getElementById('btn-login');
+        const registerBtn = document.getElementById('btn-register');
+        const logoutBtn = document.getElementById('btn-logout');
+        
+        if (loginBtn) {
+            loginBtn.addEventListener('click', () => this.handleAuthAction('/api/auth/login'));
+        }
+        if (registerBtn) {
+            registerBtn.addEventListener('click', () => this.handleAuthAction('/api/auth/register'));
+        }
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => this.handleLogout());
+        }
+
+        // Add Friend button binding
+        const addFriendBtn = document.getElementById('btn-add-friend');
+        if (addFriendBtn) {
+            addFriendBtn.addEventListener('click', () => this.handleAddFriend());
+        }
+
+        // Customization parts selector options
+        const partSlots = ['skin', 'torso', 'legs'];
+        partSlots.forEach(slot => {
+            const container = document.getElementById(`parts-${slot}`);
+            if (container) {
+                const options = container.querySelectorAll('.part-option');
+                options.forEach(opt => {
+                    opt.addEventListener('click', () => {
+                        sfx.playClick();
+                        options.forEach(o => o.classList.remove('selected'));
+                        opt.classList.add('selected');
+                    });
+                });
+            }
+        });
+
+        // Customization Save button binding
+        const customizeSaveBtn = document.getElementById('btn-save-customization');
+        if (customizeSaveBtn) {
+            customizeSaveBtn.addEventListener('click', () => this.handleSaveCustomization());
+        }
+
+        // Add dynamic toast notifications container
+        let toastContainer = document.getElementById('invite-toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'invite-toast-container';
+            toastContainer.id = 'invite-toast-container';
+            document.body.appendChild(toastContainer);
+        }
+    }
+
+    async handleAuthAction(endpoint) {
+        sfx.playClick();
+        const usernameInput = document.getElementById('auth-username');
+        const passwordInput = document.getElementById('auth-password');
+        const errorDiv = document.getElementById('auth-error');
+        
+        if (errorDiv) errorDiv.classList.add('hidden');
+
+        const username = usernameInput ? usernameInput.value.trim() : '';
+        const password = passwordInput ? passwordInput.value : '';
+
+        if (!username || !password) {
+            if (errorDiv) {
+                errorDiv.textContent = 'Please enter username and password.';
+                errorDiv.classList.remove('hidden');
+            }
+            return;
+        }
+
+        try {
+            const res = await fetch(this.getApiUrl(endpoint), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                this.handleAuthenticated(data.user);
+            } else {
+                if (errorDiv) {
+                    errorDiv.textContent = data.error || 'Authentication failed.';
+                    errorDiv.classList.remove('hidden');
+                }
+            }
+        } catch (e) {
+            console.error('[Auth] Error during auth:', e);
+            if (errorDiv) {
+                errorDiv.textContent = 'Connection error. Make sure backend is running.';
+                errorDiv.classList.remove('hidden');
+            }
+        }
+    }
+
+    handleAuthenticated(user) {
+        this.user = user;
+        
+        // Login WebSockets server
+        if (this.socket && this.connectionState === 'connected') {
+            this.sendNetPacket({
+                type: 'social_login',
+                username: user.username
+            });
+        }
+
+        // Set username in index.html lobby profile fields
+        const nameInput = document.getElementById('player-name');
+        if (nameInput) {
+            nameInput.value = user.username;
+            nameInput.disabled = true; // lock username input for customized name protection
+        }
+
+        // Apply skin color picker selection
+        if (user.customization && user.customization.skin) {
+            const skinColors = document.querySelectorAll('.color-option');
+            skinColors.forEach(c => {
+                c.classList.remove('selected');
+                if (c.dataset.color.toLowerCase() === user.customization.skin.toLowerCase()) {
+                    c.classList.add('selected');
+                }
+            });
+        }
+
+        // Toggle Auth view state boxes
+        const loggedOutBox = document.getElementById('auth-logged-out');
+        const loggedInBox = document.getElementById('auth-logged-in');
+        if (loggedOutBox) loggedOutBox.classList.add('hidden');
+        if (loggedInBox) {
+            loggedInBox.classList.remove('hidden');
+            document.getElementById('logged-username').textContent = user.username;
+            
+            // Populate stats counters
+            document.getElementById('stat-wins').textContent = user.stats.wins;
+            document.getElementById('stat-kills').textContent = user.stats.kills;
+            document.getElementById('stat-matches').textContent = user.stats.matches;
+        }
+
+        // Enable Social / Friends authenticated states
+        const socialUnauth = document.getElementById('social-unauthenticated');
+        const socialAuth = document.getElementById('social-authenticated');
+        if (socialUnauth) socialUnauth.classList.add('hidden');
+        if (socialAuth) socialAuth.classList.remove('hidden');
+
+        // Populate Customize parts selections
+        this.applyCustomizationToPartsSelector(user.customization);
+
+        this.triggerAnnouncement(`LOGGED IN AS: ${user.username.toUpperCase()}`);
+        this.connectSocket();
+        this.loadFriendsList();
+    }
+
+    handleLogout() {
+        sfx.playClick();
+        this.pendingRejoinRoomId = null;
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+        if (this.user && this.socket && this.connectionState === 'connected') {
+            this.sendNetPacket({
+                type: 'social_status',
+                status: 'offline'
+            });
+        }
+
+        // Close the socket on logout if matchmaking is not set to online
+        const modeVal = document.querySelector('#mode-toggle .toggle-btn.selected').dataset.value;
+        if (modeVal !== 'online') {
+            this.disconnectSocket();
+        }
+
+        this.user = null;
+        this.friends = [];
+
+        // Unlock player name field
+        const nameInput = document.getElementById('player-name');
+        if (nameInput) {
+            nameInput.value = 'Player1';
+            nameInput.disabled = false;
+        }
+
+        const loggedOutBox = document.getElementById('auth-logged-out');
+        const loggedInBox = document.getElementById('auth-logged-in');
+        if (loggedOutBox) loggedOutBox.classList.remove('hidden');
+        if (loggedInBox) loggedInBox.classList.add('hidden');
+
+        const socialUnauth = document.getElementById('social-unauthenticated');
+        const socialAuth = document.getElementById('social-authenticated');
+        if (socialUnauth) socialUnauth.classList.remove('hidden');
+        if (socialAuth) socialAuth.classList.add('hidden');
+
+        // Clear friends list display
+        const friendsListContainer = document.getElementById('friends-list');
+        if (friendsListContainer) {
+            friendsListContainer.innerHTML = '<p class="empty-list-text">No friends added yet. Type a username above and click ADD!</p>';
+        }
+        const friendsCountSpan = document.getElementById('friends-count');
+        if (friendsCountSpan) friendsCountSpan.textContent = '0';
+
+        this.triggerAnnouncement('LOGGED OUT SUCCESSFULLY.');
+    }
+
+    async loadFriendsList() {
+        if (!this.user) return;
+        try {
+            const res = await fetch(this.getApiUrl(`/api/social/friends?username=${this.user.username}`));
+            const data = await res.json();
+            if (data.success) {
+                // Instantly render current friends with offline status as default
+                // (or preserve their current status if they already exist in our client list)
+                const mappedFriends = data.friends.map(f => {
+                    const existing = this.friends ? this.friends.find(ex => ex.username.toLowerCase() === f.username.toLowerCase()) : null;
+                    return {
+                        username: f.username,
+                        friendshipStatus: f.status,
+                        onlineStatus: existing ? existing.onlineStatus : 'offline'
+                    };
+                });
+                this.renderFriendsList(mappedFriends);
+
+                // If WS is connected, send social_login to sync active real-time online statuses
+                if (this.socket && this.connectionState === 'connected') {
+                    this.sendNetPacket({
+                        type: 'social_login',
+                        username: this.user.username
+                    });
+                }
+            }
+        } catch (e) {
+            console.error('[Social] Error loading friends list:', e);
+        }
+    }
+
+    async handleAddFriend() {
+        sfx.playClick();
+        if (!this.user) return;
+
+        const friendInput = document.getElementById('search-friend-input');
+        const messageDiv = document.getElementById('social-message');
+        if (!friendInput || !messageDiv) return;
+
+        messageDiv.classList.add('hidden');
+        const friendName = friendInput.value.trim();
+
+        if (!friendName) return;
+
+        try {
+            const res = await fetch(this.getApiUrl('/api/social/add-friend'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: this.user.username, friendName })
+            });
+            const data = await res.json();
+            if (data.success) {
+                messageDiv.className = 'social-message-box success';
+                messageDiv.textContent = `Friend request sent to ${friendName}!`;
+                messageDiv.classList.remove('hidden');
+                friendInput.value = '';
+                this.loadFriendsList();
+            } else {
+                messageDiv.className = 'social-message-box error';
+                messageDiv.textContent = data.error || 'Failed to add friend.';
+                messageDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            console.error('[Social] Error adding friend:', e);
+            messageDiv.className = 'social-message-box error';
+            messageDiv.textContent = 'Network error.';
+            messageDiv.classList.remove('hidden');
+        }
+    }
+
+    async handleAcceptFriend(friendName) {
+        if (!this.user) return;
+        try {
+            const res = await fetch(this.getApiUrl('/api/social/accept-friend'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: this.user.username, friendName })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.loadFriendsList();
+            }
+        } catch (e) {
+            console.error('[Social] Error accepting friend:', e);
+        }
+    }
+
+    handleSendSquadInvite(friendName) {
+        if (!this.user) return;
+        
+        // If not connected to WS, connect first
+        if (this.connectionState !== 'connected') {
+            this.triggerAnnouncement('CONNECTING TO SOCIAL SERVER...');
+            this.connectSocket();
+            this.pendingInviteFriend = friendName;
+            return;
+        }
+
+        // If not currently in an online matchmaking lobby room, join one automatically in duo mode!
+        if (!this.roomId) {
+            this.triggerAnnouncement('PREPARING MULTIPLAYER SQUAD LOBBY...');
+            
+            // Switch matchmaking mode toggle to online
+            const onlineBtn = document.querySelector('#mode-toggle button[data-value="online"]');
+            if (onlineBtn) {
+                onlineBtn.click();
+            }
+            
+            // Switch team size toggle to duo
+            const duoBtn = document.querySelector('#team-toggle button[data-value="duo"]');
+            if (duoBtn) {
+                duoBtn.click();
+            }
+
+            this.pendingInviteFriend = friendName;
+            const squadRoomId = 'room_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+            this.joinOnlineMatchmaking(squadRoomId);
+            return;
+        }
+
+        sfx.playClick();
+        console.log(`[Social] Client sending squad_invite packet from ${this.user.username} to ${friendName} | Room ID: ${this.roomId}`);
+        this.sendNetPacket({
+            type: 'squad_invite',
+            from: this.user.username,
+            to: friendName,
+            roomId: this.roomId
+        });
+        
+        this.triggerAnnouncement(`SQUAD INVITATION SENT TO ${friendName.toUpperCase()}!`);
+    }
+
+    applyCustomizationToPartsSelector(customization) {
+        if (!customization) return;
+        
+        const partSlots = ['skin', 'torso', 'legs'];
+        partSlots.forEach(part => {
+            const val = customization[part];
+            if (val) {
+                const container = document.getElementById(`parts-${part}`);
+                if (container) {
+                    const options = container.querySelectorAll('.part-option');
+                    options.forEach(o => {
+                        o.classList.remove('selected');
+                        if (o.dataset.value === val) {
+                            o.classList.add('selected');
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    async handleSaveCustomization() {
+        sfx.playClick();
+        if (!this.user) return;
+
+        const skinOpt = document.querySelector('#parts-skin .part-option.selected');
+        const torsoOpt = document.querySelector('#parts-torso .part-option.selected');
+        const legsOpt = document.querySelector('#parts-legs .part-option.selected');
+
+        const skin = skinOpt ? skinOpt.dataset.value : '#f5b041';
+        const torso = torsoOpt ? torsoOpt.dataset.value : 'classic';
+        const legs = legsOpt ? legsOpt.dataset.value : 'classic';
+
+        const customization = { skin, torso, legs };
+
+        try {
+            const res = await fetch(this.getApiUrl('/api/auth/customization'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: this.user.username, customization })
+            });
+            const data = await res.json();
+            if (data.success) {
+                this.user.customization = customization;
+                
+                // Sync color selection selector in lobby
+                const lobbyColors = document.querySelectorAll('.color-option');
+                lobbyColors.forEach(c => {
+                    c.classList.remove('selected');
+                    if (c.dataset.color.toLowerCase() === skin.toLowerCase()) {
+                        c.classList.add('selected');
+                    }
+                });
+
+                this.triggerAnnouncement('MINIFIG CUSTOMIZATION APPLIED!');
+            }
+        } catch (e) {
+            console.error('[Customizer] Error saving customization:', e);
+        }
+    }
+
+    renderFriendsList(friends) {
+        this.friends = friends;
+        const friendsListContainer = document.getElementById('friends-list');
+        const friendsCountSpan = document.getElementById('friends-count');
+        if (!friendsListContainer) return;
+
+        friendsListContainer.innerHTML = '';
+        if (friendsCountSpan) friendsCountSpan.textContent = friends.filter(f => f.friendshipStatus === 'accepted').length;
+
+        const acceptedFriends = friends.filter(f => f.friendshipStatus === 'accepted');
+        const pendingFriends = friends.filter(f => f.friendshipStatus === 'pending');
+
+        if (acceptedFriends.length === 0 && pendingFriends.length === 0) {
+            friendsListContainer.innerHTML = '<p class="empty-list-text">No friends added yet. Type a username above and click ADD!</p>';
+            return;
+        }
+
+        // Sort friends list
+        acceptedFriends.sort((a, b) => {
+            const priority = { 'online': 2, 'in-match': 1, 'offline': 0 };
+            return (priority[b.onlineStatus] || 0) - (priority[a.onlineStatus] || 0);
+        });
+
+        // 1. Render Pending Requests
+        pendingFriends.forEach(f => {
+            const card = document.createElement('div');
+            card.className = 'friend-card';
+            card.innerHTML = `
+                <div class="friend-info">
+                    <span class="status-dot pending"></span>
+                    <span class="friend-name">${f.username}</span>
+                </div>
+                <div class="friend-actions">
+                    <button class="friend-btn accept">ACCEPT</button>
+                </div>
+            `;
+            card.querySelector('.accept').addEventListener('click', () => this.handleAcceptFriend(f.username));
+            friendsListContainer.appendChild(card);
+        });
+
+        // 2. Render Accepted Friends
+        acceptedFriends.forEach(f => {
+            const statusLabel = f.onlineStatus.toUpperCase();
+            const card = document.createElement('div');
+            card.className = 'friend-card';
+            card.innerHTML = `
+                <div class="friend-info">
+                    <span class="status-dot ${f.onlineStatus}"></span>
+                    <span class="friend-name">${f.username} (${statusLabel})</span>
+                </div>
+                <div class="friend-actions">
+                    ${f.onlineStatus !== 'offline' ? `<button class="friend-btn invite">INVITE</button>` : ''}
+                </div>
+            `;
+            if (f.onlineStatus !== 'offline') {
+                card.querySelector('.invite').addEventListener('click', () => this.handleSendSquadInvite(f.username));
+            }
+            friendsListContainer.appendChild(card);
+        });
+    }
+
+    spawnSquadInviteToast(fromUser, roomId) {
+        console.log(`[Social] Spawning squad invite toast in UI from user: ${fromUser} | Room: ${roomId}`);
+        sfx.playLoot();
+        
+        // Spawn badge on drawer toggle button
+        const badge = document.getElementById('social-invite-badge');
+        if (badge) {
+            const count = parseInt(badge.textContent || '0') + 1;
+            badge.textContent = count;
+            badge.classList.remove('hidden');
+        }
+
+        const container = document.getElementById('invite-toast-container');
+        if (!container) {
+            console.warn('[Social] Failed to find invite-toast-container DOM element!');
+            return;
+        }
+
+        const toast = document.createElement('div');
+        toast.className = 'invite-toast';
+        toast.innerHTML = `
+            <div class="invite-toast-header">
+                <span>👥 SQUAD INVITATION</span>
+            </div>
+            <div class="invite-toast-body">
+                <strong>${fromUser}</strong> has invited you to join their squad!
+            </div>
+            <div class="invite-toast-actions">
+                <button class="toast-btn accept">ACCEPT</button>
+                <button class="toast-btn decline">DECLINE</button>
+            </div>
+        `;
+
+        container.appendChild(toast);
+
+        toast.querySelector('.accept').addEventListener('click', () => {
+            sfx.playClick();
+            this.triggerFullscreen();
+            
+            // Switch team mode toggle inside lobby to DUO
+            const duoBtn = document.querySelector('#team-toggle button[data-value="duo"]');
+            if (duoBtn) {
+                duoBtn.click();
+            }
+
+            // Trigger Online match join but specifying targetRoomId!
+            this.joinOnlineMatchmaking(roomId);
+            
+            toast.remove();
+            this.decrementSocialInviteBadge();
+        });
+
+        toast.querySelector('.decline').addEventListener('click', () => {
+            sfx.playClick();
+            toast.remove();
+            this.decrementSocialInviteBadge();
+        });
+
+        // Auto remove toast after 15 seconds
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.remove();
+                this.decrementSocialInviteBadge();
+            }
+        }, 15000);
+    }
+
+    decrementSocialInviteBadge() {
+        const badge = document.getElementById('social-invite-badge');
+        if (badge) {
+            const count = Math.max(0, parseInt(badge.textContent || '0') - 1);
+            badge.textContent = count;
+            if (count === 0) {
+                badge.classList.add('hidden');
+            }
+        }
     }
 
     resizeCanvas() {
@@ -4087,6 +5079,34 @@ class GameDirector {
         }
     }
 
+    getApiUrl(endpoint) {
+        if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+            return endpoint;
+        }
+
+        const host = window.location.hostname || 'localhost';
+        const isSecure = window.location.protocol === 'https:';
+        const httpProtocol = isSecure ? 'https:' : 'http:';
+        
+        let finalPort = '';
+        const isLocal = ['localhost', '127.0.0.1'].includes(host) || 
+                        host.startsWith('192.168.') || 
+                        host.startsWith('10.') || 
+                        host.startsWith('172.');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('wsPort')) {
+            finalPort = urlParams.get('wsPort');
+        } else if (window.location.port) {
+            finalPort = window.location.port;
+        } else if (isLocal) {
+            finalPort = '8080';
+        }
+
+        const path = endpoint.startsWith('/') ? endpoint : '/' + endpoint;
+        return `${httpProtocol}//${host}${finalPort ? ':' + finalPort : ''}${path}`;
+    }
+
     checkServerStatus() {
         const indicator = document.getElementById('server-status');
         if (!indicator) return;
@@ -4096,17 +5116,26 @@ class GameDirector {
 
         try {
             const urlParams = new URLSearchParams(window.location.search);
-            const wsPort = urlParams.get('wsPort') || '8080';
             const wsHost = window.location.hostname || 'localhost';
             
             // Determine secure protocol (wss:) if running under HTTPS
             const isSecure = window.location.protocol === 'https:';
             const protocol = isSecure ? 'wss:' : 'ws:';
             
-            // On HTTPS, if wsPort is standard 8080, default to secure port or empty
-            let finalPort = wsPort;
-            if (isSecure && !urlParams.has('wsPort')) {
-                finalPort = window.location.port ? window.location.port : '';
+            // On cloud host platforms (like Render), never append port 8080.
+            // On local setups (localhost or LAN IP), default to port 8080.
+            let finalPort = '';
+            const isLocal = ['localhost', '127.0.0.1'].includes(wsHost) || 
+                            wsHost.startsWith('192.168.') || 
+                            wsHost.startsWith('10.') || 
+                            wsHost.startsWith('172.');
+            
+            if (urlParams.has('wsPort')) {
+                finalPort = urlParams.get('wsPort');
+            } else if (window.location.port) {
+                finalPort = window.location.port;
+            } else if (isLocal) {
+                finalPort = '8080';
             }
             
             const wsUrl = `${protocol}//${wsHost}${finalPort ? ':' + finalPort : ''}`;
@@ -4131,6 +5160,14 @@ class GameDirector {
 
     connectSocket() {
         if (this.socket && (this.socket.readyState === WebSocket.CONNECTING || this.socket.readyState === WebSocket.OPEN)) {
+            // Socket is already active! If we are authenticated, make sure to register our username session right now!
+            if (this.socket.readyState === WebSocket.OPEN && this.user) {
+                console.log(`[Social] Socket already open. Proactively registering username session: ${this.user.username}`);
+                this.sendNetPacket({
+                    type: 'social_login',
+                    username: this.user.username
+                });
+            }
             return;
         }
 
@@ -4142,15 +5179,25 @@ class GameDirector {
 
         try {
             const urlParams = new URLSearchParams(window.location.search);
-            const wsPort = urlParams.get('wsPort') || '8080';
             const wsHost = window.location.hostname || 'localhost';
             
             const isSecure = window.location.protocol === 'https:';
             const protocol = isSecure ? 'wss:' : 'ws:';
             
-            let finalPort = wsPort;
-            if (isSecure && !urlParams.has('wsPort')) {
-                finalPort = window.location.port ? window.location.port : '';
+            // On cloud host platforms (like Render), never append port 8080.
+            // On local setups (localhost or LAN IP), default to port 8080.
+            let finalPort = '';
+            const isLocal = ['localhost', '127.0.0.1'].includes(wsHost) || 
+                            wsHost.startsWith('192.168.') || 
+                            wsHost.startsWith('10.') || 
+                            wsHost.startsWith('172.');
+            
+            if (urlParams.has('wsPort')) {
+                finalPort = urlParams.get('wsPort');
+            } else if (window.location.port) {
+                finalPort = window.location.port;
+            } else if (isLocal) {
+                finalPort = '8080';
             }
             
             const wsUrl = `${protocol}//${wsHost}${finalPort ? ':' + finalPort : ''}`;
@@ -4160,15 +5207,48 @@ class GameDirector {
 
             this.socket.onopen = () => {
                 this.connectionState = 'connected';
+                
+                // Clear any active reconnect timeout
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                    this.reconnectTimeout = null;
+                }
+                
                 if (indicator) {
                     indicator.className = 'status-indicator online';
                     indicator.textContent = 'ONLINE';
                 }
                 
+                // If a user is already logged in, register their session on the websocket
+                if (this.user) {
+                    this.sendNetPacket({
+                        type: 'social_login',
+                        username: this.user.username
+                    });
+                }
+
+                // Automatically rejoin the active matchmaking room if we had one
+                if (this.pendingRejoinRoomId) {
+                    console.log(`[Net] Connection restored! Auto-rejoining room: ${this.pendingRejoinRoomId}`);
+                    this.joinOnlineMatchmaking(this.pendingRejoinRoomId);
+                    this.pendingRejoinRoomId = null;
+                }
+                
+                // If there's a pending invite, retry sending it now that socket is open
+                if (this.pendingInviteFriend && !this.roomId) {
+                    setTimeout(() => {
+                        if (this.pendingInviteFriend) {
+                            this.handleSendSquadInvite(this.pendingInviteFriend);
+                        }
+                    }, 500);
+                }
+                
                 const startBtn = document.getElementById('btn-start-game');
                 if (startBtn && document.querySelector('#mode-toggle .toggle-btn.selected').dataset.value === 'online') {
-                    startBtn.textContent = 'FIND MATCH';
-                    startBtn.disabled = false;
+                    if (!this.pendingRejoinRoomId && !this.roomId) {
+                        startBtn.textContent = 'FIND MATCH';
+                        startBtn.disabled = false;
+                    }
                 }
             };
 
@@ -4178,6 +5258,13 @@ class GameDirector {
 
             this.socket.onclose = () => {
                 this.connectionState = 'disconnected';
+                
+                // Preserve the room ID for automatic rejoining if this was an unexpected disconnect
+                if (this.roomId) {
+                    this.pendingRejoinRoomId = this.roomId;
+                    console.log(`[Net] Unexpected disconnect. Saved pending rejoin room ID: ${this.pendingRejoinRoomId}`);
+                }
+                
                 this.isHost = false;
                 this.netId = null;
                 this.roomId = null;
@@ -4209,6 +5296,20 @@ class GameDirector {
                         }
                     });
                 }
+                
+                // Auto-reconnect loop if logged in or matchmaking is online
+                const currentMode = document.querySelector('#mode-toggle .toggle-btn.selected');
+                const isOnlineMode = currentMode && currentMode.dataset.value === 'online';
+                if (this.user || isOnlineMode) {
+                    if (!this.reconnectTimeout) {
+                        console.log('[Net] Socket disconnected unexpectedly. Scheduling auto-reconnect in 3s...');
+                        this.reconnectTimeout = setTimeout(() => {
+                            this.reconnectTimeout = null;
+                            console.log('[Net] Attempting auto-reconnect...');
+                            this.connectSocket();
+                        }, 3000);
+                    }
+                }
             };
 
             this.socket.onerror = (err) => {
@@ -4233,6 +5334,11 @@ class GameDirector {
     }
 
     disconnectSocket() {
+        this.pendingRejoinRoomId = null;
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
         if (this.socket) {
             this.socket.close();
             this.socket = null;
@@ -4252,7 +5358,12 @@ class GameDirector {
         }
     }
 
-    joinOnlineMatchmaking() {
+    joinOnlineMatchmaking(targetRoomId = null) {
+        // Guard: if already in a room and no specific target, skip (prevents accidental re-join)
+        if (this.roomId && !targetRoomId) {
+            console.log('[Net] Already in room ' + this.roomId + ', skipping matchmaking.');
+            return;
+        }
         const username = document.getElementById('player-name').value || 'Minifig';
         const colorOption = document.querySelector('.color-option.selected');
         const color = colorOption ? colorOption.dataset.color : '#f5b041';
@@ -4276,8 +5387,27 @@ class GameDirector {
             teamSize: teamSize,
             pairCode: pairCode,
             name: username,
-            color: color
+            color: color,
+            targetRoomId: targetRoomId
         });
+    }
+
+    updateLobbyBotGroupVisibility() {
+        const botGroup = document.getElementById('bot-count-group');
+        if (botGroup) {
+            const botSelect = document.getElementById('bot-count');
+            if (this.isOnline) {
+                if (this.isHost) {
+                    botGroup.classList.remove('hidden');
+                    if (botSelect) botSelect.disabled = false;
+                } else {
+                    botGroup.classList.add('hidden');
+                }
+            } else {
+                botGroup.classList.remove('hidden');
+                if (botSelect) botSelect.disabled = false;
+            }
+        }
     }
 
     toggleLobbyControls(enable) {
@@ -4319,8 +5449,26 @@ class GameDirector {
                     this.isHost = data.isHost;
                     this.teammateId = data.teammateId;
                     this.map.scene = data.scene;
+                    this.updateLobbyBotGroupVisibility();
+                    
+                    // If the room has already started (is in_game state), immediately launch!
+                    if (data.roomState === 'in_game' && this.gameState === 'menu') {
+                        console.log('[Net] Joined an in-progress match. Launching game...');
+                        this.triggerAnnouncement('REJOINING ACTIVE MATCH!');
+                        this.originalBotCount = data.botCount !== undefined ? data.botCount : 19;
+                        this.matchSeed = data.seed !== undefined ? data.seed : Math.random();
+                        this.startMatchOnlineActual();
+                        break;
+                    }
                     
                     this.triggerAnnouncement(`JOINED LOBBY: ${data.roomId.toUpperCase()}`);
+                    
+                    // Automatically dispatch pending invitation once lobby room is successfully joined!
+                    if (this.pendingInviteFriend) {
+                        const targetFriend = this.pendingInviteFriend;
+                        this.pendingInviteFriend = null;
+                        this.handleSendSquadInvite(targetFriend);
+                    }
                     
                     const startBtn = document.getElementById('btn-start-game');
                     if (startBtn) {
@@ -4330,7 +5478,10 @@ class GameDirector {
                             startBtn.onclick = () => {
                                 sfx.playClick();
                                 this.triggerFullscreen();
-                                this.sendNetPacket({ type: 'start_match' });
+                                const botSelect = document.getElementById('bot-count');
+                                const botCount = botSelect ? parseInt(botSelect.value) : 19;
+                                const seed = Math.random();
+                                this.sendNetPacket({ type: 'start_match', botCount: botCount, seed: seed });
                             };
                         } else {
                             startBtn.textContent = 'WAITING FOR HOST...';
@@ -4340,8 +5491,11 @@ class GameDirector {
                     break;
 
                 case 'room_players':
-                    this.isHost = data.isHost;
+                    if (this.gameState === 'menu') {
+                        this.isHost = data.isHost;
+                    }
                     this.teammateId = data.teammateId;
+                    this.updateLobbyBotGroupVisibility();
                     
                     const playersCount = data.players.length;
                     this.triggerAnnouncement(`PLAYERS IN ROOM: ${playersCount} / 50`);
@@ -4354,7 +5508,10 @@ class GameDirector {
                             sBtn.onclick = () => {
                                 sfx.playClick();
                                 this.triggerFullscreen();
-                                this.sendNetPacket({ type: 'start_match' });
+                                const botSelect = document.getElementById('bot-count');
+                                const botCount = botSelect ? parseInt(botSelect.value) : 19;
+                                const seed = Math.random();
+                                this.sendNetPacket({ type: 'start_match', botCount: botCount, seed: seed });
                             };
                         } else {
                             sBtn.textContent = `WAITING (${playersCount} PLYRS)...`;
@@ -4366,6 +5523,8 @@ class GameDirector {
 
                 case 'match_start':
                     this.triggerAnnouncement('MATCH STARTING!');
+                    this.originalBotCount = data.botCount !== undefined ? data.botCount : 19;
+                    this.matchSeed = data.seed !== undefined ? data.seed : Math.random();
                     this.startMatchOnlineActual();
                     break;
 
@@ -4379,6 +5538,14 @@ class GameDirector {
 
                 case 'loot_sync':
                     this.handleLootSync(data);
+                    break;
+
+                case 'loot_pickup_replicated':
+                    this.handleLootPickupReplicated(data);
+                    break;
+
+                case 'loot_drop_replicated':
+                    this.handleLootDropReplicated(data);
                     break;
 
                 case 'damage_replicated':
@@ -4395,6 +5562,7 @@ class GameDirector {
 
                 case 'host_migrated':
                     this.isHost = data.hostId === this.netId;
+                    this.updateLobbyBotGroupVisibility();
                     this.triggerAnnouncement(this.isHost ? 'YOU ARE NOW THE MATCH HOST!' : 'HOST MIGRATED.');
                     
                     const btn = document.getElementById('btn-start-game');
@@ -4405,7 +5573,10 @@ class GameDirector {
                             btn.onclick = () => {
                                 sfx.playClick();
                                 this.triggerFullscreen();
-                                this.sendNetPacket({ type: 'start_match' });
+                                const botSelect = document.getElementById('bot-count');
+                                const botCount = botSelect ? parseInt(botSelect.value) : 19;
+                                const seed = Math.random();
+                                this.sendNetPacket({ type: 'start_match', botCount: botCount, seed: seed });
                             };
                         } else {
                             btn.textContent = 'WAITING FOR HOST...';
@@ -4417,6 +5588,45 @@ class GameDirector {
                 case 'player_left':
                     this.handlePlayerLeft(data.id);
                     break;
+
+                case 'friends_status_list':
+                    this.renderFriendsList(data.friends);
+                    break;
+
+                case 'friend_status_sync':
+                    if (this.friends) {
+                        const friend = this.friends.find(f => f.username.toLowerCase() === data.username.toLowerCase());
+                        if (friend) {
+                            friend.onlineStatus = data.status;
+                            this.renderFriendsList(this.friends);
+                        }
+                    }
+                    break;
+
+                case 'friend_request_notify':
+                    this.triggerAnnouncement(`NEW FRIEND REQUEST FROM: ${data.from.toUpperCase()}`);
+                    this.loadFriendsList();
+                    const badge = document.getElementById('social-invite-badge');
+                    if (badge) {
+                        const count = parseInt(badge.textContent || '0') + 1;
+                        badge.textContent = count;
+                        badge.classList.remove('hidden');
+                    }
+                    break;
+
+                case 'friend_accepted_notify':
+                    this.triggerAnnouncement(`${data.from.toUpperCase()} ACCEPTED YOUR FRIEND REQUEST!`);
+                    this.loadFriendsList();
+                    break;
+
+                case 'squad_invite_notify':
+                    console.log(`[Social] Client received squad_invite_notify from ${data.from} for Room: ${data.roomId}`);
+                    this.spawnSquadInviteToast(data.from, data.roomId);
+                    break;
+
+                case 'squad_accept_notify':
+                    this.triggerAnnouncement(`${data.from.toUpperCase()} ACCEPTED YOUR INVITATION!`);
+                    break;
             }
         } catch (e) {
             console.error('[Net] Failed to parse message:', e);
@@ -4424,6 +5634,7 @@ class GameDirector {
     }
 
     handlePlayerSync(data) {
+        console.log("[Net Sync] Received player_sync for:", data.id, "at x:", data.x, "y:", data.y);
         let peer = this.entities.find(ent => ent.isPlayer && ent !== this.player && ent.username === data.id);
         if (!peer) {
             const lobbyP = this.lobbyPlayers ? this.lobbyPlayers.find(p => p.id === data.id) : null;
@@ -4448,6 +5659,9 @@ class GameDirector {
         peer.activeWeaponIndex = data.activeWeaponIndex;
         peer.armorLevel = data.armorLevel;
         peer.kills = data.kills;
+        if (data.survivalTime !== undefined) {
+            peer.survivalTime = data.survivalTime;
+        }
 
         if (peer.health <= 0 && peer.state !== 'dead') {
             peer.state = 'dead';
@@ -4456,11 +5670,15 @@ class GameDirector {
     }
 
     handleGameSync(data) {
+        console.log("[Net Sync] Received game_sync with bots count:", data.bots ? data.bots.length : 0);
         data.bots.forEach(bData => {
             let bot = this.entities.find(ent => ent instanceof Bot && ent.username === bData.id);
             if (!bot) {
+                console.warn("[Net Sync] Bot NOT found in local entities! Spawning new white bot:", bData.id);
                 bot = new Bot(bData.x, bData.y, bData.id, '#ffffff');
                 this.entities.push(bot);
+            } else {
+                console.log("[Net Sync] Updating matched bot:", bData.id, "targetX:", bData.x, "targetY:", bData.y);
             }
             
             bot.targetX = bData.x;
@@ -4508,6 +5726,20 @@ class GameDirector {
         this.map.loot = data.loot;
     }
 
+    handleLootPickupReplicated(data) {
+        if (this.map && this.map.loot) {
+            this.map.loot = this.map.loot.filter(item => item.id !== data.itemId);
+        }
+    }
+
+    handleLootDropReplicated(data) {
+        if (this.map && this.map.loot) {
+            if (!this.map.loot.some(item => item.id === data.item.id)) {
+                this.map.loot.push(data.item);
+            }
+        }
+    }
+
     handleDamageReplicated(data) {
         if (data.attackerId === this.netId || (this.isHost && data.isBot)) {
             return;
@@ -4546,6 +5778,11 @@ class GameDirector {
     handleEliminationReplicated(data) {
         this.triggerAnnouncement(`${data.killerName} ELIMINATED ${data.killedName}!`);
         
+        if (this.isOnline && this.lobbyPlayers) {
+            const lp = this.lobbyPlayers.find(p => p.id === data.killedId);
+            if (lp) lp.dead = true;
+        }
+
         const killed = this.entities.find(e => e.username === data.killedId);
         const killer = this.entities.find(e => e.username === data.killerId);
         
@@ -4553,6 +5790,27 @@ class GameDirector {
             killed.state = 'dead';
             killed.health = 0;
             fx.spawnLegoExplode(killed.x, killed.y, '#f5b041', killed.color, '#2c3e50');
+
+            // If online, check if a teammate died and update team rank
+            if (this.isOnline && this.lobbyPlayers && this.lobbyPlayers.some(p => p.id === data.killedId)) {
+                this.bestTeamRank = Math.min(this.bestTeamRank || 99, this.aliveCount);
+                console.log(`[Spectate] Teammate ${data.killedName} died at Rank #${this.aliveCount}`);
+                
+                if (this.gameState === 'results') {
+                    this.updateResultsUI(false);
+                    
+                    // Auto-pop the results screen if actively spectating and the squad is fully eliminated
+                    const anyTeammateAlive = this.lobbyPlayers.some(p => !p.dead);
+                    
+                    if (!anyTeammateAlive) {
+                        this.resultsScreen.classList.remove('hidden');
+                        const sBtn = document.getElementById('btn-spectate');
+                        if (sBtn) sBtn.classList.add('hidden');
+                        const banner = document.getElementById('spectator-banner');
+                        if (banner) banner.classList.add('hidden');
+                    }
+                }
+            }
         }
         
         if (killer && killed && killed.state === 'dead') {
@@ -4651,32 +5909,61 @@ class GameDirector {
         
         this.startMatch();
     }
-
     startMatchOnlineActual() {
-        this.isOnline = true;
-        this.winnerWinner = false;
-        this.matchTime = 0;
-        this.bullets = [];
-        this.entities = [];
-        
-        const startBtn = document.getElementById('btn-start-game');
-        if (startBtn) {
-            startBtn.textContent = 'START MATCH';
-            startBtn.disabled = false;
-            startBtn.onclick = () => {
-                sfx.playClick();
-                this.triggerFullscreen();
-                this.startMatch();
-            };
-        }
+        try {
+            this.triggerFullscreen();
+            this.isOnline = true;
+            this.winnerWinner = false;
+            this.matchEnding = false;
+            this.matchTime = 0;
+            this.bullets = [];
+            this.entities = [];
+            
+            const startBtn = document.getElementById('btn-start-game');
+            if (startBtn) {
+                startBtn.textContent = 'START MATCH';
+                startBtn.disabled = false;
+                startBtn.onclick = () => {
+                    sfx.playClick();
+                    this.triggerFullscreen();
+                    this.startMatch();
+                };
+            }
 
         this.toggleLobbyControls(true);
+        if (this.lobbyPlayers) {
+            this.lobbyPlayers.forEach(p => p.dead = false);
+        }
 
         const myLobbyData = this.lobbyPlayers.find(p => p.id === this.netId);
         const username = myLobbyData ? myLobbyData.name : 'Player1';
         const color = myLobbyData ? myLobbyData.color : '#f5b041';
 
-        const angle = Math.random() * Math.PI * 2;
+        let randVal = Math.random;
+        if (this.matchSeed !== undefined && this.matchSeed !== null) {
+            let seed = this.matchSeed;
+            randVal = function() {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        // Dynamic Map Scaling - Scaled up 3x in dimensions (9x in surface area)
+        let calculatedMapSize = 10800;
+        const totalPlayers = this.originalBotCount + 1;
+        if (totalPlayers <= 20) {
+            calculatedMapSize = 6000;
+        } else if (totalPlayers <= 50) {
+            calculatedMapSize = 10800;
+        } else {
+            calculatedMapSize = 15600;
+        }
+        this.map.seed = this.matchSeed;
+        this.map.setSize(calculatedMapSize);
+
+        const angle = randVal() * Math.PI * 2;
         const flightRadius = this.map.size * 0.65;
         this.plane.startX = this.map.half - Math.cos(angle) * flightRadius;
         this.plane.startY = this.map.half - Math.sin(angle) * flightRadius;
@@ -4686,11 +5973,16 @@ class GameDirector {
         this.plane.x = this.plane.startX;
         this.plane.y = this.plane.startY;
         this.plane.progress = 0;
-        this.plane.speed = 0.06;
+        
+        // Slower plane progress speed relative to the map scale to give drop selection time
+        const flightTimeScale = Math.sqrt(calculatedMapSize / 3600);
+        const planeSpeed = 0.09 / flightTimeScale; 
+        this.plane.speed = planeSpeed;
 
-        this.player = new Player(this.plane.x, this.plane.y, username, color);
+        this.player = new Player(this.plane.x, this.plane.y, this.netId, color);
         this.player.state = 'plane';
-        this.player.username = username;
+        this.player.username = this.netId;
+        this.player.displayName = username;
         
         const autoPickupCheck = document.getElementById('auto-pickup');
         this.player.autoPickup = autoPickupCheck ? autoPickupCheck.checked : true;
@@ -4698,32 +5990,38 @@ class GameDirector {
 
         this.lobbyPlayers.forEach(p => {
             if (p.id !== this.netId) {
-                const peer = new Player(this.plane.x, this.plane.y, p.name, p.color);
+                const peer = new Player(this.plane.x, this.plane.y, p.id, p.color);
                 peer.isNetworkPlayer = true;
                 peer.username = p.id;
+                peer.displayName = p.name;
                 peer.state = 'plane';
                 this.entities.push(peer);
             }
         });
 
         const totalHumans = this.lobbyPlayers.length;
-        const botsNeeded = 50 - totalHumans;
+        const botsNeeded = Math.max(0, (this.originalBotCount + 1) - totalHumans);
         
         const botNames = ['BrickSmash', 'StudSniper', 'LegoLegit', 'BuildBoy', 'MasterBuilder', 'PlatePatrol', 'MinifigMaster', 'CrateCrusher', 'BlockyBot', 'ContraLego', 'ChromeStud', 'PlasticHero', 'LegoGamer', 'StudLord', 'RedBrick', 'LegoApex', 'StudSlayer', 'BrickStorm', 'LegoNinja'];
         const botColors = ['#e74c3c', '#3498db', '#2ecc71', '#9b59b6', '#f39c12', '#bdc3c7', '#1abc9c', '#e67e22', '#d35400', '#2c3e50'];
 
         for (let i = 0; i < botsNeeded; i++) {
-            const bName = botNames[i % botNames.length] + '#' + Math.floor(Math.random()*900 + 100);
-            const bColor = botColors[Math.floor(Math.random() * botColors.length)];
+            const bName = botNames[i % botNames.length] + '#' + Math.floor(randVal()*900 + 100);
+            const bColor = botColors[Math.floor(randVal() * botColors.length)];
 
-            const travelOffsetAngle = angle + (Math.random() - 0.5) * 1.5;
-            const flightDist = Math.random() * (flightRadius * 1.5);
+            const travelOffsetAngle = angle + (randVal() - 0.5) * 1.5;
+            const flightDist = randVal() * (flightRadius * 1.5);
             const bx = this.plane.startX + Math.cos(travelOffsetAngle) * flightDist;
             const by = this.plane.startY + Math.sin(travelOffsetAngle) * flightDist;
 
             const bot = new Bot(bx, by, bName, bColor);
             bot.state = 'plane';
-            bot.aiTimer = 1000 + Math.random() * 6000;
+            
+            // Total plane flight time in ms
+            const totalFlightTimeMs = (1.0 / planeSpeed) * 1000;
+            // Distribute ejections beautifully along the entire flight path
+            bot.aiTimer = 1000 + randVal() * (totalFlightTimeMs - 3000); 
+            console.log("[Seeded Spawner] Generated Bot name:", bName, "at x:", bx, "y:", by, "color:", bColor);
             this.entities.push(bot);
         }
 
@@ -4739,7 +6037,7 @@ class GameDirector {
                     tmEntity.isTeammate = true;
                     if (teammateHUD) {
                         teammateHUD.classList.remove('hidden');
-                        document.getElementById('tm-name').textContent = tmEntity.username.substring(0, 8);
+                        document.getElementById('tm-name').textContent = (tmEntity.displayName || tmEntity.username).substring(0, 8);
                     }
                 }
             } else {
@@ -4747,10 +6045,10 @@ class GameDirector {
                 if (firstBot) {
                     this.teammateEntity = firstBot;
                     firstBot.isTeammate = true;
-                    firstBot.username = `[TEAM] ${firstBot.username}`;
+                    firstBot.displayName = `[TEAM] ${firstBot.displayName || firstBot.username}`;
                     if (teammateHUD) {
                         teammateHUD.classList.remove('hidden');
-                        document.getElementById('tm-name').textContent = firstBot.username;
+                        document.getElementById('tm-name').textContent = firstBot.displayName || firstBot.username;
                     }
                 }
             }
@@ -4783,6 +6081,10 @@ class GameDirector {
         this.camera.x = this.plane.x;
         this.camera.y = this.plane.y;
         this.camera.targetZoom = 0.55;
+        } catch (e) {
+            alert('Crash in startMatchOnlineActual: ' + e.message + '\n' + e.stack);
+            console.error(e);
+        }
     }
 
     startMatch() {
@@ -4793,6 +6095,20 @@ class GameDirector {
         this.aliveCount = this.originalBotCount + 1;
         this.matchTime = 0;
         this.winnerWinner = false;
+        this.matchEnding = false;
+        this.bestTeamRank = 99;
+
+        // Dynamic Map Scaling - Scaled up 3x in dimensions (9x in surface area)
+        let calculatedMapSize = 10800;
+        const totalPlayers = this.originalBotCount + 1;
+        if (totalPlayers <= 20) {
+            calculatedMapSize = 6000;
+        } else if (totalPlayers <= 50) {
+            calculatedMapSize = 10800;
+        } else {
+            calculatedMapSize = 15600;
+        }
+        this.map.setSize(calculatedMapSize);
 
         this.map.generate();
         this.bullets = [];
@@ -4808,7 +6124,11 @@ class GameDirector {
         this.plane.x = this.plane.startX;
         this.plane.y = this.plane.startY;
         this.plane.progress = 0;
-        this.plane.speed = 0.05 + Math.random() * 0.03;
+        
+        // Slower plane progress speed relative to the map scale to give drop selection time
+        const flightTimeScale = Math.sqrt(calculatedMapSize / 3600);
+        const planeSpeed = 0.09 / flightTimeScale; 
+        this.plane.speed = planeSpeed;
 
         this.player = new Player(this.plane.x, this.plane.y, username, color);
         this.player.state = 'plane';
@@ -4837,7 +6157,11 @@ class GameDirector {
 
             const bot = new Bot(bx, by, bName, bColor);
             bot.state = 'plane';
-            bot.aiTimer = 1000 + Math.random() * 6000;
+            
+            // Total plane flight time in ms
+            const totalFlightTimeMs = (1.0 / planeSpeed) * 1000;
+            // Distribute ejections beautifully along the entire flight path
+            bot.aiTimer = 1000 + Math.random() * (totalFlightTimeMs - 3000); 
             this.entities.push(bot);
         }
 
@@ -4887,7 +6211,8 @@ class GameDirector {
 
     ejectPlayer() {
         try {
-            if (this.player && this.player.state === 'plane') {
+            if (this.gameState === 'combat') return;
+            if (this.player && (this.player.state === 'plane' || this.player.state === 'parachute')) {
                 this.player.state = 'parachute';
                 this.player.parachuteAltitude = 250;
                 this.player.x = this.plane.x;
@@ -4936,20 +6261,67 @@ class GameDirector {
 
         fx.update(dt);
 
-        if (this.gameState === 'plane') {
-            this.matchTime += dt;
-
-            this.plane.progress += 0.09 * dt;
+        // Update flight path and keep remaining plane-bound entities synchronized
+        if (this.plane && this.plane.progress < 1.0) {
+            const flightTimeScale = Math.sqrt(this.map.size / 3600);
+            const planeSpeed = 0.09 / flightTimeScale;
+            
+            this.plane.progress += planeSpeed * dt;
             this.plane.x = this.plane.startX + (this.plane.endX - this.plane.startX) * this.plane.progress;
             this.plane.y = this.plane.startY + (this.plane.endY - this.plane.startY) * this.plane.progress;
 
+            // Keep all entities still inside the plane perfectly synced with the plane coordinates
+            this.entities.forEach((ent) => {
+                if (ent.state === 'plane') {
+                    ent.x = this.plane.x;
+                    ent.y = this.plane.y;
+                }
+            });
+        }
+
+        if (this.gameState === 'plane') {
+            this.matchTime += dt;
+
             this.camera.update(this.plane.x, this.plane.y, dt);
 
+            // Update all entities to allow them to simulate transitions to 'parachute' / 'alive' states in real-time
             this.entities.forEach((ent) => {
-                if (ent instanceof Bot && ent.state === 'plane') {
+                if (ent instanceof Player) {
+                    ent.update(dt, this.input, this.map, (b) => this.spawnBullet(b), this.camera);
+                } else if (ent instanceof Bot) {
                     ent.update(dt, this.map, (b) => this.spawnBullet(b), this.entities);
                 }
             });
+
+            // Replicate player state and host ticks continuously during the flight ride
+            if (this.isOnline && this.player && this.player.state !== 'dead') {
+                const now = performance.now();
+                if (now - this.lastSyncTime > 45) {
+                    this.lastSyncTime = now;
+                    this.sendNetPacket({
+                        type: 'state_sync',
+                        x: this.player.x,
+                        y: this.player.y,
+                        angle: this.player.angle,
+                        state: this.player.state,
+                        parachuteAltitude: this.player.parachuteAltitude,
+                        health: this.player.health,
+                        shield: this.player.shield,
+                        activeWeaponIndex: this.player.activeWeaponIndex,
+                        armorLevel: this.player.armorLevel,
+                        kills: this.player.kills,
+                        survivalTime: this.player.survivalTime
+                    });
+                }
+            }
+
+            if (this.isOnline && this.isHost) {
+                const now = performance.now();
+                if (!this.lastHostSyncTime || now - this.lastHostSyncTime > 80) {
+                    this.lastHostSyncTime = now;
+                    this.sendHostSync();
+                }
+            }
 
             if (this.plane.progress >= 1.0) {
                 this.ejectPlayer();
@@ -4959,7 +6331,7 @@ class GameDirector {
             return;
         }
 
-        if (this.gameState === 'combat') {
+        if (this.gameState === 'combat' || this.gameState === 'results') {
             this.matchTime += dt;
 
             this.map.updateZones(
@@ -4989,7 +6361,8 @@ class GameDirector {
                         shield: this.player.shield,
                         activeWeaponIndex: this.player.activeWeaponIndex,
                         armorLevel: this.player.armorLevel,
-                        kills: this.player.kills
+                        kills: this.player.kills,
+                        survivalTime: this.player.survivalTime
                     });
                 }
             }
@@ -5089,7 +6462,7 @@ class GameDirector {
             }
 
             if (this.player) {
-                if (this.player.state === 'alive') {
+                if (this.player.state === 'alive' || this.player.state === 'parachute') {
                     const activeW = this.player.weapons[this.player.activeWeaponIndex];
                     const baseZoom = window.innerWidth < 900 ? 0.5 : 1.05;
                     if (activeW && activeW.id === 'sniper' && this.input.mouse.clicked) {
@@ -5099,12 +6472,38 @@ class GameDirector {
                     }
                     this.camera.update(this.player.x, this.player.y, dt);
                 } else if (this.player.state === 'dead') {
-                    const aliveBots = this.entities.filter((e) => e.state !== 'dead' && e !== this.player);
-                    if (aliveBots.length > 0) {
-                        this.camera.update(aliveBots[0].x, aliveBots[0].y, dt);
+                    let target = null;
+                    
+                    // 1. Prioritize tracking our teammate (if in duo mode)
+                    if (this.isOnline && this.teammateId) {
+                        const teammate = this.entities.find(e => e.isPlayer && e !== this.player && e.username === this.teammateId && e.state !== 'dead');
+                        if (teammate) {
+                            target = teammate;
+                        }
                     }
                     
-                    if (this.gameState !== 'results') {
+                    // 2. Fallback to other active network players
+                    if (!target && this.isOnline) {
+                        const otherPlayer = this.entities.find(e => e.isPlayer && e !== this.player && e.state !== 'dead');
+                        if (otherPlayer) {
+                            target = otherPlayer;
+                        }
+                    }
+                    
+                    // 3. Fallback to any alive entity/bot
+                    if (!target) {
+                        const aliveBots = this.entities.filter((e) => e.state !== 'dead' && e !== this.player);
+                        if (aliveBots.length > 0) {
+                            target = aliveBots[0];
+                        }
+                    }
+                    
+                    if (target) {
+                        this.camera.update(target.x, target.y, dt);
+                    }
+                    
+                    if (this.gameState !== 'results' && !this.matchEnding) {
+                        this.matchEnding = true;
                         setTimeout(() => this.endMatch(false), 2500);
                     }
                 }
@@ -5116,7 +6515,39 @@ class GameDirector {
 
             if (this.aliveCount === 1 && this.player && this.player.state === 'alive' && !this.winnerWinner) {
                 this.winnerWinner = true;
+                this.matchEnding = true;
                 setTimeout(() => this.endMatch(true), 2000);
+            }
+
+            // Teammate spectator victory auto-exit
+            if (this.isOnline && this.gameState === 'results' && this.aliveCount === 1 && !this.winnerWinner) {
+                const soleSurvivor = this.entities.find(ent => ent.state === 'alive');
+                if (soleSurvivor && soleSurvivor.isPlayer && this.lobbyPlayers.some(p => p.id === soleSurvivor.username)) {
+                    this.winnerWinner = true;
+                    this.matchEnding = true;
+                    this.bestTeamRank = 1;
+                    setTimeout(() => {
+                        this.updateResultsUI(true);
+                        this.resultsScreen.classList.remove('hidden');
+                        const sBtn = document.getElementById('btn-spectate');
+                        if (sBtn) sBtn.classList.add('hidden');
+                        const banner = document.getElementById('spectator-banner');
+                        if (banner) banner.classList.add('hidden');
+                    }, 2000);
+                }
+            }
+
+            // Auto-pop the results screen if actively spectating and the squad is fully eliminated
+            if (this.gameState === 'results' && this.resultsScreen.classList.contains('hidden')) {
+                const anyTeammateAlive = !this.isOnline || (this.lobbyPlayers && this.lobbyPlayers.some(p => !p.dead));
+
+                if (!anyTeammateAlive) {
+                    this.resultsScreen.classList.remove('hidden');
+                    const sBtn = document.getElementById('btn-spectate');
+                    if (sBtn) sBtn.classList.add('hidden');
+                    const banner = document.getElementById('spectator-banner');
+                    if (banner) banner.classList.add('hidden');
+                }
             }
         }
 
@@ -5394,7 +6825,11 @@ class GameDirector {
             fx.spawnStudScatter(player.x, player.y, spec.color || '#f5b041', 5, 1.5);
             map.loot.splice(index, 1);
             
-            if (this.isOnline && this.isHost) {
+            if (this.isOnline) {
+                this.sendNetPacket({
+                    type: 'loot_pickup',
+                    itemId: item.id
+                });
                 this.sendHostLootSync();
             }
         }
@@ -5404,6 +6839,42 @@ class GameDirector {
         this.gameState = 'results';
         sfx.stopZoneHum();
 
+        if (victory) {
+            this.bestTeamRank = 1;
+            sfx.playLoot();
+        } else {
+            this.bestTeamRank = Math.min(this.bestTeamRank || 99, this.aliveCount + 1);
+            sfx.playLegoRattle(0.8);
+        }
+
+        // Save stats to backend if authenticated
+        if (this.user) {
+            this.user.stats.matches += 1;
+            this.user.stats.kills += this.player.kills;
+            if (victory) {
+                this.user.stats.wins += 1;
+            }
+            // Send to server
+            fetch(this.getApiUrl('/api/auth/customization'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    username: this.user.username,
+                    stats: this.user.stats
+                })
+            }).catch(e => console.error('[Stats] Failed to save stats:', e));
+
+            // Sync Stats displays
+            document.getElementById('stat-wins').textContent = this.user.stats.wins;
+            document.getElementById('stat-kills').textContent = this.user.stats.kills;
+            document.getElementById('stat-matches').textContent = this.user.stats.matches;
+        }
+
+        this.updateResultsUI(victory);
+        this.resultsScreen.classList.remove('hidden');
+    }
+
+    updateResultsUI(victory) {
         const title = document.getElementById('results-title');
         const subtitle = document.getElementById('results-subtitle');
         const card = document.getElementById('results-card');
@@ -5412,26 +6883,132 @@ class GameDirector {
             title.textContent = 'VICTORY!';
             subtitle.textContent = 'WINNER WINNER CHICKEN DINNER';
             card.className = 'menu-card results-screen victory';
-            sfx.playLoot();
         } else {
             title.textContent = 'DEFEAT';
             subtitle.textContent = 'ELIMINATED IN COMBAT';
             card.className = 'menu-card results-screen defeat';
-            sfx.playLegoRattle(0.8);
         }
 
-        const rank = victory ? '#1' : `#${this.aliveCount + 1}`;
+        const rank = `#${this.bestTeamRank}`;
         document.getElementById('res-rank').textContent = rank;
         document.getElementById('res-kills').textContent = this.player.kills;
         
-        const estDmg = this.player.kills * 100 + Math.floor(Math.random() * 80);
-        document.getElementById('res-damage').textContent = estDmg;
+        // Use deterministic damage estimation to ensure sync on the main cards
+        const getEstimatedDamage = (kills, username) => {
+            let hash = 0;
+            for (let i = 0; i < username.length; i++) {
+                hash = username.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const seed = Math.abs(hash) % 80;
+            return kills * 100 + seed;
+        };
+
+        const formatTime = (timeInSeconds) => {
+            const min = Math.floor(timeInSeconds / 60);
+            const sec = Math.floor(timeInSeconds % 60);
+            return `${min}:${sec.toString().padStart(2, '0')}`;
+        };
+
+        const localDamage = getEstimatedDamage(this.player.kills, this.player.displayName || this.player.username);
+        document.getElementById('res-damage').textContent = localDamage;
 
         const min = Math.floor(this.matchTime / 60);
         const sec = Math.floor(this.matchTime % 60);
         document.getElementById('res-time').textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
 
-        this.resultsScreen.classList.remove('hidden');
+        // Check if any human teammate is still alive
+        const anyTeammateAlive = this.isOnline && this.lobbyPlayers && this.lobbyPlayers.some(p => p.id !== this.netId && !p.dead);
+
+        // Populate spectate button
+        const spectateBtn = document.getElementById('btn-spectate');
+        if (spectateBtn) {
+            if (!victory && anyTeammateAlive && this.aliveCount > 0) {
+                spectateBtn.classList.remove('hidden');
+            } else {
+                spectateBtn.classList.add('hidden');
+            }
+        }
+
+        // Populate squad stats list with rankings (only show after all teammates die)
+        const squadContainer = document.getElementById('results-squad-container');
+        const squadList = document.getElementById('results-squad-list');
+        if (squadContainer && squadList) {
+            if (this.isOnline && this.lobbyPlayers && this.lobbyPlayers.length > 1 && !anyTeammateAlive) {
+                squadContainer.classList.remove('hidden');
+                squadList.innerHTML = '';
+
+                // Map teammates to stats
+                const teammateStats = this.lobbyPlayers.map(p => {
+                    let kills = 0;
+                    let stateText = 'DEAD';
+                    let color = p.color || '#f5b041';
+                    let survival = 0;
+
+                    if (p.id === this.netId) {
+                        kills = this.player.kills;
+                        stateText = this.player.state === 'dead' ? 'DEAD' : 'ALIVE';
+                        survival = this.player.survivalTime;
+                    } else {
+                        const ent = this.entities.find(e => e.isPlayer && e.username === p.id);
+                        if (ent) {
+                            kills = ent.kills;
+                            stateText = ent.state === 'dead' ? 'DEAD' : 'ALIVE';
+                            survival = ent.survivalTime;
+                        }
+                    }
+
+                    const damage = getEstimatedDamage(kills, p.name);
+
+                    return {
+                        id: p.id,
+                        name: p.name,
+                        color: color,
+                        kills: kills,
+                        damage: damage,
+                        survival: survival,
+                        stateText: stateText
+                    };
+                });
+
+                // Sort squad members: kills (primary desc), damage (secondary desc)
+                teammateStats.sort((a, b) => {
+                    if (b.kills !== a.kills) {
+                        return b.kills - a.kills;
+                    }
+                    return b.damage - a.damage;
+                });
+
+                // Render sorted/ranked squad rows
+                teammateStats.forEach((p, idx) => {
+                    const playerRow = document.createElement('div');
+                    playerRow.style.display = 'grid';
+                    playerRow.style.gridTemplateColumns = '1.4fr 1.2fr 0.9fr 0.8fr 1.2fr';
+                    playerRow.style.alignItems = 'center';
+                    playerRow.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    playerRow.style.padding = '8px 0';
+                    playerRow.style.fontSize = '0.75rem';
+
+                    const rankNum = idx + 1;
+                    const rankColor = rankNum === 1 ? '#f1c40f' : (rankNum === 2 ? '#95a5a6' : (rankNum === 3 ? '#cd7f32' : '#bdc3c7'));
+                    const rankBadge = rankNum === 1 ? '👑 #1 (MVP)' : (rankNum === 2 ? '🥈 #2' : (rankNum === 3 ? '🥉 #3' : `#${rankNum}`));
+                    const formattedSurvival = formatTime(p.survival);
+
+                    playerRow.innerHTML = `
+                        <span style="font-weight: bold; color: ${rankColor}; text-align: left;">${rankBadge}</span>
+                        <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            <span style="display: inline-block; width: 10px; height: 10px; background: ${p.color}; border-radius: 50%; flex-shrink: 0;"></span>
+                            <span style="font-weight: bold; color: #fff; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.name}</span>
+                        </div>
+                        <span style="color: #bdc3c7; text-align: left;">KILLS: <strong style="color: #fff;">${p.kills}</strong></span>
+                        <span style="color: #bdc3c7; text-align: left;">DMG: <strong style="color: #fff;">${p.damage}</strong></span>
+                        <span style="color: #bdc3c7; text-align: left;">SURVIVAL: <strong style="color: #fff;">${formattedSurvival}</strong></span>
+                    `;
+                    squadList.appendChild(playerRow);
+                });
+            } else {
+                squadContainer.classList.add('hidden');
+            }
+        }
     }
 
     draw() {
@@ -5450,7 +7027,7 @@ class GameDirector {
         this.camera.apply(this.ctx, this.canvas.width, this.canvas.height);
 
         this.map.drawTerrain(this.ctx, this.camera);
-        this.map.drawLoot(this.ctx);
+        this.map.drawLoot(this.ctx, this.camera);
 
         this.entities.forEach((ent) => {
             if (ent.state === 'alive' || ent.state === 'parachute') {
@@ -5468,7 +7045,7 @@ class GameDirector {
                     activeWeapon: activeWeapon,
                     armorLevel: ent.armorLevel,
                     shield: ent.shield,
-                    username: ent.username,
+                    username: ent.displayName || ent.username,
                     isPlayer: ent.isPlayer,
                     healthPercent: hpPercent
                 });
@@ -5569,5 +7146,5 @@ class GameDirector {
 }
 
 // Start Game Director immediately
-const director = new GameDirector();
+director = new GameDirector();
 requestAnimationFrame((time) => director.run(time));

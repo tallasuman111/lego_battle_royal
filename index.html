@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="LEGO Contra">
     <meta name="mobile-web-app-capable" content="yes">
-    <link rel="stylesheet" href="style.css?v=19">
+    <link rel="stylesheet" href="style.css?v=30">
 </head>
 <body>
     <div id="game-container">
@@ -196,157 +196,298 @@
 
         <!-- Touch Controls Interface -->
         <div id="touch-controls" class="touch-control-overlay">
-            <!-- Left Side controls -->
-            <div class="touch-left-side">
-                <div id="joystick-move-container" class="joystick-outer">
-                    <div id="joystick-sprint-indicator" class="sprint-indicator">
-                        <div class="sprint-icon">⚡</div>
-                        <span>LOCK SPRINT</span>
-                    </div>
-                    <div id="joystick-move" class="virtual-joystick-container">
-                        <div id="joystick-move-knob" class="joystick-knob"></div>
-                    </div>
+            <!-- Left Side touch capture overlay layer -->
+            <div class="touch-left-side"></div>
+
+            <!-- Movement Joystick Container -->
+            <div id="joystick-move-container" class="joystick-outer">
+                <div id="joystick-sprint-indicator" class="sprint-indicator">
+                    <div class="sprint-icon">⚡</div>
+                    <span>LOCK SPRINT</span>
+                </div>
+                <div id="joystick-move" class="virtual-joystick-container">
+                    <div id="joystick-move-knob" class="joystick-knob"></div>
                 </div>
             </div>
 
-            <!-- Right Side controls -->
-            <div class="touch-right-side">
-                <!-- Large PUBG bullet fire button -->
-                <div id="t-btn-fire" class="touch-btn fire-btn">
-                    <svg viewBox="0 0 24 24" width="36" height="36" class="bullet-svg">
-                        <path d="M12,2A3,3 0 0,0 9,5V12C9,14 10,16 12,17C14,16 15,14 15,12V5A3,3 0 0,0 12,2M12,19C9.5,19 7,20 7,22H17C17,20 14.5,19 12,19Z" fill="currentColor"/>
-                    </svg>
-                </div>
+            <!-- Large PUBG bullet fire button -->
+            <div id="t-btn-fire" class="touch-btn fire-btn">
+                <svg viewBox="0 0 24 24" width="36" height="36" class="bullet-svg">
+                    <path d="M12,2A3,3 0 0,0 9,5V12C9,14 10,16 12,17C14,16 15,14 15,12V5A3,3 0 0,0 12,2M12,19C9.5,19 7,20 7,22H17C17,20 14.5,19 12,19Z" fill="currentColor"/>
+                </svg>
+            </div>
 
-                <!-- Right Aim Joystick -->
-                <div id="joystick-aim" class="virtual-joystick-container">
-                    <div id="joystick-aim-knob" class="joystick-knob"></div>
-                </div>
-                
-                <!-- Action button arc around Aim Joystick -->
-                <div class="touch-action-buttons">
-                    <div id="t-btn-eject" class="touch-btn circular-btn hidden" title="Eject From Plane">
-                        <svg viewBox="0 0 24 24"><path d="M5,20h14v-2H5V20z M12,2L4,10h5v6h6v-6h5L12,2z" fill="currentColor"/></svg>
-                    </div>
-                    <div id="t-btn-reload" class="touch-btn circular-btn" title="Reload Weapon">
-                        <svg viewBox="0 0 24 24"><path d="M12,6v3l4-4l-4-4v3c-4.42,0-8,3.58-8,8c0,1.57,0.46,3.03,1.24,4.26L6.7,14.8C6.25,13.97,6,13.01,6,12C6,8.69,8.69,6,12,6z M18.76,7.74L17.3,9.2c0.45,0.83,0.7,1.79,0.7,2.8c0,3.31-2.69,6-6,6v-3l-4,4l4,4v-3c4.42,0,8-3.58,8-8C20,10.43,19.54,8.97,18.76,7.74z" fill="currentColor"/></svg>
-                    </div>
-                    <div id="t-btn-heal" class="touch-btn circular-btn" title="Heal / Medkit">
-                        <svg viewBox="0 0 24 24"><path d="M19,10.5h-5.5V5h-3v5.5H5v3h5.5V19h3v-5.5H19V10.5z" fill="currentColor"/></svg>
-                    </div>
-                    <div id="t-btn-interact" class="touch-btn circular-btn" title="Interact / Loot">
-                        <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M13,17h-2v-6h2V17z M13,9h-2V7h2V9z" fill="currentColor"/></svg>
-                    </div>
-                    <!-- Isometric/2D View Toggle camera button -->
-                    <div id="t-btn-view-toggle" class="touch-btn circular-btn camera-toggle-btn" title="Toggle 2.5D View">
-                        <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="currentColor"/></svg>
-                    </div>
-                </div>
+            <!-- Right Aim Joystick -->
+            <div id="joystick-aim" class="virtual-joystick-container">
+                <div id="joystick-aim-knob" class="joystick-knob"></div>
+            </div>
+            
+            <!-- Customizable Action Buttons -->
+            <div id="t-btn-eject" class="touch-btn circular-btn hidden" title="Eject From Plane">
+                <svg viewBox="0 0 24 24"><path d="M5,20h14v-2H5V20z M12,2L4,10h5v6h6v-6h5L12,2z" fill="currentColor"/></svg>
+            </div>
+            <div id="t-btn-reload" class="touch-btn circular-btn" title="Reload Weapon">
+                <svg viewBox="0 0 24 24"><path d="M12,6v3l4-4l-4-4v3c-4.42,0-8,3.58-8,8c0,1.57,0.46,3.03,1.24,4.26L6.7,14.8C6.25,13.97,6,13.01,6,12C6,8.69,8.69,6,12,6z M18.76,7.74L17.3,9.2c0.45,0.83,0.7,1.79,0.7,2.8c0,3.31-2.69,6-6,6v-3l-4,4l4,4v-3c4.42,0,8-3.58,8-8C20,10.43,19.54,8.97,18.76,7.74z" fill="currentColor"/></svg>
+            </div>
+            <div id="t-btn-heal" class="touch-btn circular-btn" title="Heal / Medkit">
+                <svg viewBox="0 0 24 24"><path d="M19,10.5h-5.5V5h-3v5.5H5v3h5.5V19h3v-5.5H19V10.5z" fill="currentColor"/></svg>
+            </div>
+            <div id="t-btn-interact" class="touch-btn circular-btn" title="Interact / Loot">
+                <svg viewBox="0 0 24 24"><path d="M12,2C6.48,2,2,6.48,2,12s4.48,10,10,10s10-4.48,10-10S17.52,2,12,2z M13,17h-2v-6h2V17z M13,9h-2V7h2V9z" fill="currentColor"/></svg>
+            </div>
+            <div id="t-btn-view-toggle" class="touch-btn circular-btn camera-toggle-btn" title="Toggle 2.5D View">
+                <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="currentColor"/></svg>
             </div>
         </div>
 
         <!-- Start Game Screen -->
         <div id="menu-screen" class="screen-overlay">
-            <div class="menu-card lobby-card">
-                <h1>LEGO</h1>
-                <h2>BATTLE ROYALE</h2>
+            <div class="lobby-layout-wrapper">
                 
-                <!-- Player Profile Settings -->
-                <div class="lobby-row">
-                    <div class="input-group flex-2">
-                        <label for="player-name">MINIFIG USERNAME</label>
-                        <input type="text" id="player-name" value="Player1">
-                    </div>
-                    <div class="input-group flex-1">
-                        <label>AUTO LOOT</label>
-                        <label class="checkbox-container">
-                            <input type="checkbox" id="auto-pickup" checked>
-                            <span class="checkmark"></span>
-                        </label>
-                    </div>
-                </div>
-
-                <div class="input-group">
-                    <label>MINIFIG COLOR</label>
-                    <div class="color-picker" id="fig-color-picker">
-                        <div class="color-option selected" data-color="#f5b041" style="background-color: #f5b041;"></div> <!-- Yellow -->
-                        <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;"></div> <!-- Red -->
-                        <div class="color-option" data-color="#3498db" style="background-color: #3498db;"></div> <!-- Blue -->
-                        <div class="color-option" data-color="#2ecc71" style="background-color: #2ecc71;"></div> <!-- Green -->
-                        <div class="color-option" data-color="#9b59b6" style="background-color: #9b59b6;"></div> <!-- Purple -->
-                        <div class="color-option" data-color="#f39c12" style="background-color: #f39c12;"></div> <!-- Orange -->
-                    </div>
-                </div>
-
-                <!-- Match Setup Settings -->
-                <div class="lobby-row">
-                    <div class="input-group flex-1">
-                        <label>GAME MODE</label>
-                        <div class="toggle-group" id="mode-toggle">
-                            <button class="toggle-btn selected" data-value="offline">OFFLINE</button>
-                            <button class="toggle-btn" data-value="online">ONLINE</button>
+                <!-- Main Lobby Card -->
+                <div class="menu-card lobby-card">
+                    <h1>LEGO</h1>
+                    <h2>BATTLE ROYALE</h2>
+                    
+                    <!-- Player Profile Settings -->
+                    <div class="lobby-row">
+                        <div class="input-group flex-2">
+                            <label for="player-name">MINIFIG USERNAME</label>
+                            <input type="text" id="player-name" value="Player1">
+                        </div>
+                        <div class="input-group flex-1">
+                            <label>AUTO LOOT</label>
+                            <label class="checkbox-container">
+                                <input type="checkbox" id="auto-pickup" checked>
+                                <span class="checkmark"></span>
+                            </label>
                         </div>
                     </div>
-                    <div class="input-group flex-1">
-                        <label>TEAM TYPE</label>
-                        <div class="toggle-group" id="team-toggle">
-                            <button class="toggle-btn selected" data-value="solo">SOLO</button>
-                            <button class="toggle-btn" data-value="duo">DUO</button>
+
+                    <div class="input-group">
+                        <label>MINIFIG COLOR</label>
+                        <div class="color-picker" id="fig-color-picker">
+                            <div class="color-option selected" data-color="#f5b041" style="background-color: #f5b041;"></div> <!-- Yellow -->
+                            <div class="color-option" data-color="#e74c3c" style="background-color: #e74c3c;"></div> <!-- Red -->
+                            <div class="color-option" data-color="#3498db" style="background-color: #3498db;"></div> <!-- Blue -->
+                            <div class="color-option" data-color="#2ecc71" style="background-color: #2ecc71;"></div> <!-- Green -->
+                            <div class="color-option" data-color="#9b59b6" style="background-color: #9b59b6;"></div> <!-- Purple -->
+                            <div class="color-option" data-color="#f39c12" style="background-color: #f39c12;"></div> <!-- Orange -->
+                        </div>
+                    </div>
+
+                    <!-- Match Setup Settings -->
+                    <div class="lobby-row">
+                        <div class="input-group flex-1">
+                            <label>GAME MODE</label>
+                            <div class="toggle-group" id="mode-toggle">
+                                <button class="toggle-btn selected" data-value="offline">OFFLINE</button>
+                                <button class="toggle-btn" data-value="online">ONLINE</button>
+                            </div>
+                        </div>
+                        <div class="input-group flex-1">
+                            <label>TEAM TYPE</label>
+                            <div class="toggle-group" id="team-toggle">
+                                <button class="toggle-btn selected" data-value="solo">SOLO</button>
+                                <button class="toggle-btn" data-value="duo">DUO</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Duo Match Code (Only shown when DUO is selected) -->
+                    <div id="duo-code-group" class="input-group hidden">
+                        <label for="duo-code">DUO MATCHMAKING CODE (OPTIONAL)</label>
+                        <input type="text" id="duo-code" placeholder="E.G. BRICK123" maxlength="10">
+                    </div>
+
+                    <!-- Bot Count selection (Offline only) -->
+                    <div id="bot-count-group" class="input-group">
+                        <label for="bot-count">BOT BACKFILL COUNT</label>
+                        <select id="bot-count">
+                            <option value="9">10 Players (9 Bots)</option>
+                            <option value="19" selected>20 Players (19 Bots)</option>
+                            <option value="29">30 Players (29 Bots)</option>
+                            <option value="49">50 Players (49 Bots)</option>
+                            <option value="99">100 Players (99 Bots)</option>
+                        </select>
+                    </div>
+
+                    <!-- Map / Scene Selection Grid -->
+                    <div class="input-group">
+                        <label>SELECT MAP SCENE</label>
+                        <div class="scene-selector-grid">
+                            <div class="scene-card selected" data-scene="grassland">
+                                <div class="scene-card-bg grassland-gradient"></div>
+                                <span class="scene-card-title">LEGO ISLAND</span>
+                                <span class="scene-card-desc">Lush Grassland</span>
+                            </div>
+                            <div class="scene-card" data-scene="desert">
+                                <div class="scene-card-bg desert-gradient"></div>
+                                <span class="scene-card-title">STUD RUINS</span>
+                                <span class="scene-card-desc">Desert Dunes</span>
+                            </div>
+                            <div class="scene-card" data-scene="urban">
+                                <div class="scene-card-bg urban-gradient"></div>
+                                <span class="scene-card-title">BRICKS CITY</span>
+                                <span class="scene-card-desc">Concrete Core</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Play Button Container with Server Status -->
+                    <div class="start-btn-container">
+                        <button id="btn-start-game" class="start-btn">MATCHMAKING</button>
+                        <div id="server-status" class="status-indicator offline">OFFLINE (LOCAL PLAY)</div>
+                    </div>
+                    
+                    <!-- Mobile Profile & Friends Connect Button -->
+                    <button id="btn-mobile-social" class="mobile-social-btn">👥 PROFILE & FRIENDS</button>
+                    
+                    <!-- Custom HUD Settings Button -->
+                    <button id="btn-customize-hud" class="customize-hud-btn">⚙️ CUSTOMIZE TOUCH HUD</button>
+
+                    <div class="controls-hint">
+                        <strong>Controls:</strong> WASD/Arrows to Move. Mouse to Aim & Shoot.<br>
+                        [E] or [F] to Interact/Loot. [R] to Reload.<br>
+                        [1] [2] [3] to Switch Weapons. [SPACE] to Heal.<br>
+                        <em>Fully supports <strong>Gamepad Controllers</strong> & <strong>Touch Devices</strong>!</em>
+                    </div>
+                </div>
+
+                <!-- Sliding Social & Customization Panel -->
+                <div class="social-customization-drawer collapsed" id="social-customization-drawer">
+                    <button class="drawer-toggle-btn" id="social-drawer-toggle">
+                        <span class="toggle-icon">👥</span>
+                        <span class="toggle-badge hidden" id="social-invite-badge">0</span>
+                    </button>
+                    
+                    <div class="drawer-content">
+                        <!-- Navigation tabs -->
+                        <div class="drawer-tabs">
+                            <button class="drawer-tab active" data-tab="auth">ACCOUNT</button>
+                            <button class="drawer-tab" data-tab="social">FRIENDS</button>
+                            <button class="drawer-tab" data-tab="custom">CUSTOMIZE</button>
+                        </div>
+                        
+                        <!-- TAB CONTENT: Auth (Register / Login / Stats) -->
+                        <div class="tab-pane active" id="pane-auth">
+                            <div class="auth-box" id="auth-logged-out">
+                                <h3>MINIFIG PROFILE</h3>
+                                <p class="auth-hint">Sign in to save stats & add friends!</p>
+                                <div class="input-group">
+                                    <label for="auth-username">USERNAME</label>
+                                    <input type="text" id="auth-username" placeholder="E.G. BRICKMASTER">
+                                </div>
+                                <div class="input-group">
+                                    <label for="auth-password">PASSWORD</label>
+                                    <input type="password" id="auth-password" placeholder="••••••••">
+                                </div>
+                                <div class="lobby-row" style="margin-top: 15px; gap: 10px;">
+                                    <button class="toggle-btn flex-1" id="btn-login">LOGIN</button>
+                                    <button class="toggle-btn flex-1 secondary" id="btn-register">SIGN UP</button>
+                                </div>
+                                <div class="auth-error-msg hidden" id="auth-error">Error message here</div>
+                            </div>
+                            
+                            <div class="auth-box hidden" id="auth-logged-in">
+                                <div class="profile-header">
+                                    <div class="profile-avatar" id="profile-avatar-display">👤</div>
+                                    <div class="profile-info">
+                                        <h3 id="logged-username">MinifigCoder</h3>
+                                        <span class="profile-status">ONLINE</span>
+                                    </div>
+                                    <button class="logout-btn" id="btn-logout" title="Log Out">✖</button>
+                                </div>
+                                
+                                <div class="stats-container">
+                                    <h4>CAREER STATISTICS</h4>
+                                    <div class="stats-grid">
+                                        <div class="stat-card">
+                                            <span class="stat-num" id="stat-wins">0</span>
+                                            <span class="stat-lbl">WINS</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <span class="stat-num" id="stat-kills">0</span>
+                                            <span class="stat-lbl">KILLS</span>
+                                        </div>
+                                        <div class="stat-card">
+                                            <span class="stat-num" id="stat-matches">0</span>
+                                            <span class="stat-lbl">MATCHES</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- TAB CONTENT: Friends List & Invites -->
+                        <div class="tab-pane" id="pane-social">
+                            <div id="social-unauthenticated" class="social-unauth-box">
+                                <span class="lock-icon">🔒</span>
+                                <p>Please register or log in to customize your squad and play with friends!</p>
+                            </div>
+                            
+                            <div id="social-authenticated" class="hidden">
+                                <!-- Friend Search Box -->
+                                <div class="friend-search-container">
+                                    <input type="text" id="search-friend-input" placeholder="Search username...">
+                                    <button id="btn-add-friend" class="add-friend-btn">ADD</button>
+                                </div>
+                                <div id="social-message" class="social-message-box hidden"></div>
+                                
+                                <!-- Active Friendship Requests & Friend lists -->
+                                <div class="friends-list-section">
+                                    <h4>FRIENDS LIST (<span id="friends-count">0</span>)</h4>
+                                    <div id="friends-list" class="friends-list-container">
+                                        <p class="empty-list-text">No friends added yet. Type a username above and click ADD!</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- TAB CONTENT: Lego Parts Customization -->
+                        <div class="tab-pane" id="pane-custom">
+                            <div class="customization-container">
+                                <h3>MINIFIG CUSTOMIZER</h3>
+                                <div class="customization-slots">
+                                    <div class="custom-slot">
+                                        <label>SKIN COLOR</label>
+                                        <div class="part-selector" id="parts-skin">
+                                            <div class="part-option selected" data-value="#f5b041" style="background-color: #f5b041;"></div>
+                                            <div class="part-option" data-value="#e74c3c" style="background-color: #e74c3c;"></div>
+                                            <div class="part-option" data-value="#3498db" style="background-color: #3498db;"></div>
+                                            <div class="part-option" data-value="#2ecc71" style="background-color: #2ecc71;"></div>
+                                            <div class="part-option" data-value="#9b59b6" style="background-color: #9b59b6;"></div>
+                                            <div class="part-option" data-value="#e67e22" style="background-color: #e67e22;"></div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="custom-slot">
+                                        <label>TORSO DECAL</label>
+                                        <div class="part-selector-text" id="parts-torso">
+                                            <div class="part-option selected" data-value="classic">CLASSIC</div>
+                                            <div class="part-option" data-value="police">COP</div>
+                                            <div class="part-option" data-value="space">SPACE</div>
+                                            <div class="part-option" data-value="ninja">NINJA</div>
+                                            <div class="part-option" data-value="pirate">PIRATE</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="custom-slot">
+                                        <label>LEG BRICKS</label>
+                                        <div class="part-selector-text" id="parts-legs">
+                                            <div class="part-option selected" data-value="classic">CLASSIC</div>
+                                            <div class="part-option" data-value="cargo">CARGO</div>
+                                            <div class="part-option" data-value="boots">BOOTS</div>
+                                            <div class="part-option" data-value="skirt">ROBE</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button class="toggle-btn" id="btn-save-customization" style="width: 100%; margin-top: 20px;">EQUIP & SAVE</button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Duo Match Code (Only shown when DUO is selected) -->
-                <div id="duo-code-group" class="input-group hidden">
-                    <label for="duo-code">DUO MATCHMAKING CODE (OPTIONAL)</label>
-                    <input type="text" id="duo-code" placeholder="E.G. BRICK123" maxlength="10">
-                </div>
-
-                <!-- Bot Count selection (Offline only) -->
-                <div id="bot-count-group" class="input-group">
-                    <label for="bot-count">BOT BACKFILL COUNT</label>
-                    <select id="bot-count">
-                        <option value="9">10 Players (9 Bots)</option>
-                        <option value="19" selected>20 Players (19 Bots)</option>
-                        <option value="29">30 Players (29 Bots)</option>
-                        <option value="49">50 Players (49 Bots)</option>
-                    </select>
-                </div>
-
-                <!-- Map / Scene Selection Grid -->
-                <div class="input-group">
-                    <label>SELECT MAP SCENE</label>
-                    <div class="scene-selector-grid">
-                        <div class="scene-card selected" data-scene="grassland">
-                            <div class="scene-card-bg grassland-gradient"></div>
-                            <span class="scene-card-title">LEGO ISLAND</span>
-                            <span class="scene-card-desc">Lush Grassland</span>
-                        </div>
-                        <div class="scene-card" data-scene="desert">
-                            <div class="scene-card-bg desert-gradient"></div>
-                            <span class="scene-card-title">STUD RUINS</span>
-                            <span class="scene-card-desc">Desert Dunes</span>
-                        </div>
-                        <div class="scene-card" data-scene="urban">
-                            <div class="scene-card-bg urban-gradient"></div>
-                            <span class="scene-card-title">BRICKS CITY</span>
-                            <span class="scene-card-desc">Concrete Core</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Play Button Container with Server Status -->
-                <div class="start-btn-container">
-                    <button id="btn-start-game" class="start-btn">MATCHMAKING</button>
-                    <div id="server-status" class="status-indicator offline">OFFLINE (LOCAL PLAY)</div>
-                </div>
-
-                <div class="controls-hint">
-                    <strong>Controls:</strong> WASD/Arrows to Move. Mouse to Aim & Shoot.<br>
-                    [E] or [F] to Interact/Loot. [R] to Reload.<br>
-                    [1] [2] [3] to Switch Weapons. [SPACE] to Heal.<br>
-                    <em>Fully supports <strong>Gamepad Controllers</strong> & <strong>Touch Devices</strong>!</em>
-                </div>
             </div>
         </div>
 
@@ -375,8 +516,26 @@
                     </div>
                 </div>
 
-                <button id="btn-restart" class="restart-btn">RETURN TO LOBBY</button>
+                <!-- Squad Stats List -->
+                <div id="results-squad-container" class="hidden" style="margin-top: 15px; margin-bottom: 5px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); width: 100%; box-sizing: border-box; text-align: left;">
+                    <h3 style="margin: 0 0 10px 0; font-family: var(--font-heading); color: #f1c40f; font-size: 1rem; letter-spacing: 1px; text-transform: uppercase;">TEAM STATS</h3>
+                    <div id="results-squad-list" style="display: flex; flex-direction: column; gap: 8px; font-family: var(--font-heading); font-size: 0.95rem;">
+                        <!-- Dynamically filled: Player Name | Kills | Status -->
+                    </div>
+                </div>
+
+                <div class="results-actions" style="display: flex; gap: 15px; width: 100%; margin-top: 15px;">
+                    <button id="btn-spectate" class="spectate-btn hidden" style="flex: 1; padding: 15px; border: none; border-radius: 8px; font-family: var(--font-heading); font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; background: #e74c3c; color: #fff; box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(231, 76, 60, 0.4)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 5px 15px rgba(231, 76, 60, 0.3)';">WATCH GAME</button>
+                    <button id="btn-restart" class="restart-btn" style="flex: 1; padding: 15px; border: none; border-radius: 8px; font-family: var(--font-heading); font-size: 1.1rem; font-weight: bold; cursor: pointer; transition: all 0.3s ease; background: #fff; color: #000; box-shadow: 0 5px 15px rgba(255, 255, 255, 0.2);" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(255, 255, 255, 0.3)';" onmouseout="this.style.transform='none'; this.style.boxShadow='0 5px 15px rgba(255, 255, 255, 0.2)';">EXIT TO LOBBY</button>
+                </div>
             </div>
+        </div>
+
+        <!-- Spectator Banner -->
+        <div id="spectator-banner" class="hidden" style="position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); padding: 12px 24px; border-radius: 50px; border: 2px solid #e74c3c; display: flex; align-items: center; gap: 15px; z-index: 10000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-family: var(--font-heading); color: #fff;">
+            <span style="display: inline-block; width: 10px; height: 10px; background: #e74c3c; border-radius: 50%; animation: pulse 1.5s infinite;"></span>
+            <span style="font-weight: bold; letter-spacing: 1px; font-size: 0.95rem;">SPECTATING MATCH</span>
+            <button id="btn-spectator-exit" style="background: #fff; color: #000; border: none; border-radius: 20px; padding: 6px 16px; font-weight: bold; font-family: var(--font-heading); cursor: pointer; transition: all 0.2s ease; font-size: 0.85rem;" onmouseover="this.style.background='#e74c3c'; this.style.color='#fff';" onmouseout="this.style.background='#fff'; this.style.color='#000';">EXIT TO LOBBY</button>
         </div>
         <!-- Gamepad Debug Panel -->
         <div id="gamepad-debug" class="gamepad-debug-panel hidden">
@@ -407,7 +566,24 @@
         </div>
     </div>
 
+    <!-- Squad Invitation Toast Container -->
+    <div id="invite-toast-container" class="invite-toast-container"></div>
+
+    <!-- HUD Customizer Control Bar -->
+    <div id="hud-customize-bar" class="hud-customize-bar hidden">
+        <div class="customize-bar-title">CUSTOMIZING: <span id="customize-element-name">SHOOT BUTTON</span></div>
+        <div class="customize-scale-control">
+            <span>SIZE:</span>
+            <input type="range" id="customize-scale-slider" min="50" max="250" value="100">
+            <span id="customize-scale-val">100%</span>
+        </div>
+        <div class="customize-actions">
+            <button id="btn-hud-reset" class="customize-btn reset">RESET DEFAULTS</button>
+            <button id="btn-hud-save" class="customize-btn save">SAVE & EXIT</button>
+        </div>
+    </div>
+
     <!-- Unified Standalone Game Engine -->
-    <script src="game.js?v=19"></script>
+    <script src="game.js?v=37"></script>
 </body>
 </html>
