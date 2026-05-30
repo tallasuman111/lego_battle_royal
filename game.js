@@ -867,7 +867,8 @@ class InputManager {
             weapon2: false,
             weapon3: false,
             toggleView: false,
-            touchActive: false
+            touchActive: false,
+            dropWeapon: false
         };
 
         this.moveJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
@@ -875,6 +876,7 @@ class InputManager {
         this.maxJoyRadius = 50;
         this.wasButton0Pressed = false;
         this.wasYPressed = false;
+        this.wasDropPressed = false;
         this.gamepadEjectBlocked = false;
 
         this.boundKeyDown = this.handleKeyDown.bind(this);
@@ -969,7 +971,6 @@ class InputManager {
 
         if (e.code === 'KeyR') this.actions.reload = true;
         if (e.code === 'KeyE' || e.code === 'KeyF') this.actions.interact = true;
-        if (e.code === 'KeyG') this.actions.dropWeapon = true;
         if (e.code === 'Space') {
             this.actions.heal = true;
             this.actions.eject = true;
@@ -1011,10 +1012,9 @@ class InputManager {
 
     initTouchControls() {
         const joyMove = document.getElementById('joystick-move');
-        const joyAim = document.getElementById('joystick-aim');
         const touchLeftSide = document.querySelector('.touch-left-side');
         
-        if (!joyMove || !joyAim) return;
+        if (!joyMove) return;
 
         const showTouchUI = () => {
             this.actions.touchActive = true;
@@ -1154,62 +1154,7 @@ class InputManager {
             touchLeftSide.addEventListener('touchcancel', resetMoveJoy);
         }
 
-        // Aim Joystick
-        joyAim.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.targetTouches[0];
-            const rect = joyAim.getBoundingClientRect();
-            this.aimJoy.active = true;
-            this.aimJoy.startX = rect.left + rect.width / 2;
-            this.aimJoy.startY = rect.top + rect.height / 2;
-            this.aimJoy.identifier = touch.identifier;
-        });
 
-        joyAim.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (!this.aimJoy.active) return;
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
-                if (touch.identifier === this.aimJoy.identifier) {
-                    const dx = touch.clientX - this.aimJoy.startX;
-                    const dy = touch.clientY - this.aimJoy.startY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist > 5) {
-                        const screenAngle = Math.atan2(dy, dx);
-                        const clampedDist = Math.min(dist, this.maxJoyRadius);
-                        this.aimJoy.x = (Math.cos(screenAngle) * clampedDist) / this.maxJoyRadius;
-                        this.aimJoy.y = (Math.sin(screenAngle) * clampedDist) / this.maxJoyRadius;
-                        
-                        let worldAngle = screenAngle;
-                        if (this.camera && this.camera.viewMode === 'isometric') {
-                            worldAngle += Math.PI / 4;
-                        }
-                        
-                        this.aimX = Math.cos(worldAngle);
-                        this.aimY = Math.sin(worldAngle);
-                        this.aimAngle = worldAngle;
-                        this.isAiming = true;
-                    }
-
-                    const knob = document.getElementById('joystick-aim-knob');
-                    if (knob) {
-                        knob.style.transform = `translate(${this.aimJoy.x * this.maxJoyRadius}px, ${this.aimJoy.y * this.maxJoyRadius}px)`;
-                    }
-                }
-            }
-        });
-
-        const resetAimJoy = () => {
-            this.aimJoy.active = false;
-            this.aimJoy.x = 0;
-            this.aimJoy.y = 0;
-            const knob = document.getElementById('joystick-aim-knob');
-            if (knob) knob.style.transform = 'translate(0px, 0px)';
-        };
-
-        joyAim.addEventListener('touchend', resetAimJoy);
-        joyAim.addEventListener('touchcancel', resetAimJoy);
 
         // Dedicated Bullet Fire Button
         const btnFire = document.getElementById('t-btn-fire');
@@ -1273,7 +1218,6 @@ class InputManager {
         // Touch Layout Customization Logic & Drag-and-Drop Editor
         const customizableIds = [
             'joystick-move-container',
-            'joystick-aim',
             't-btn-fire',
             't-btn-reload',
             't-btn-heal',
@@ -1311,7 +1255,6 @@ class InputManager {
                 if (nameEl) {
                     const names = {
                         'joystick-move-container': 'MOVEMENT JOYSTICK',
-                        'joystick-aim': 'AIMING JOYSTICK',
                         't-btn-fire': 'SHOOT BUTTON',
                         't-btn-reload': 'RELOAD BUTTON',
                         't-btn-heal': 'HEAL BUTTON',
@@ -1502,15 +1445,16 @@ class InputManager {
             const nameEl = document.getElementById('gp-debug-name');
             if (nameEl) nameEl.textContent = activeGamepad.id;
 
-            for (let i = 0; i < activeGamepad.buttons.length; i++) {
-                const btn = activeGamepad.buttons[i];
-                if (btn && (btn.pressed || btn.value > 0.4)) {
-                    const lastBtnEl = document.getElementById('gp-debug-last-btn');
-                    if (lastBtnEl) {
-                        lastBtnEl.textContent = "Button " + i + " (" + btn.value.toFixed(2) + ")";
-                    }
+            // 1. If currently listening for a bind, capture any button pressed and assign it
+            if (this.listeningAction) {
+                for (let i = 0; i < activeGamepad.buttons.length; i++) {
+                    const btn = activeGamepad.buttons[i];
+                    if (btn && (btn.pressed || btn.value > 0.4)) {
+                        const lastBtnEl = document.getElementById('gp-debug-last-btn');
+                        if (lastBtnEl) {
+                            lastBtnEl.textContent = "Button " + i + " (" + btn.value.toFixed(2) + ")";
+                        }
 
-                    if (this.listeningAction) {
                         this.gamepadBindings[this.listeningAction] = i;
                         try { sfx.playClick(); } catch (e) {}
                         
@@ -1519,10 +1463,75 @@ class InputManager {
 
                         const bindButtons = document.querySelectorAll('.gp-bind-btn');
                         bindButtons.forEach(b => b.textContent = 'BIND');
+                        
+                        // Auto save in localStorage
+                        localStorage.setItem('lego_contra_gamepad_bindings', JSON.stringify(this.gamepadBindings));
+                        break;
                     }
-                    break;
                 }
+                return true;
             }
+
+            // 2. Otherwise, navigate options inside the calibration menu modal using gamepad
+            const axes = activeGamepad.axes;
+            const dpadUp = activeGamepad.buttons[12]?.pressed || (axes && axes[1] < -0.5);
+            const dpadDown = activeGamepad.buttons[13]?.pressed || (axes && axes[1] > 0.5);
+            const btnAccept = activeGamepad.buttons[this.gamepadBindings.accept !== undefined ? this.gamepadBindings.accept : 0]?.pressed;
+
+            let navUp = false;
+            let navDown = false;
+            let pressAccept = false;
+
+            if (dpadUp) {
+                if (!this.wasCustUp) { navUp = true; this.wasCustUp = true; }
+            } else { this.wasCustUp = false; }
+
+            if (dpadDown) {
+                if (!this.wasCustDown) { navDown = true; this.wasCustDown = true; }
+            } else { this.wasCustDown = false; }
+
+            if (btnAccept) {
+                if (!this.wasCustAccept) { pressAccept = true; this.wasCustAccept = true; }
+            } else { this.wasCustAccept = false; }
+
+            const customizerElements = [
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="shoot"]') },
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="bumperRight"]') },
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="bumperLeft"]') },
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="startGame"]') },
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="interact"]') },
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="dropWeapon"]') },
+                { type: 'bind', element: document.querySelector('.gp-bind-btn[data-action="reload"]') },
+                { type: 'button', element: document.getElementById('btn-gp-reset') },
+                { type: 'button', element: document.getElementById('btn-gp-save') }
+            ].filter(item => item.element !== null);
+
+            if (this.activeCustomizerIndex === undefined || this.activeCustomizerIndex >= customizerElements.length) {
+                this.activeCustomizerIndex = 0;
+            }
+
+            if (navDown) {
+                this.activeCustomizerIndex = (this.activeCustomizerIndex + 1) % customizerElements.length;
+                try { sfx.playClick(); } catch(e) {}
+            } else if (navUp) {
+                this.activeCustomizerIndex = (this.activeCustomizerIndex - 1 + customizerElements.length) % customizerElements.length;
+                try { sfx.playClick(); } catch(e) {}
+            }
+
+            // Perform Accept Action on the focused element
+            const currentItem = customizerElements[this.activeCustomizerIndex];
+            if (currentItem && currentItem.element && pressAccept) {
+                currentItem.element.click();
+            }
+
+            // Apply premium highlight style
+            document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
+            const refreshedItem = customizerElements[this.activeCustomizerIndex];
+            if (refreshedItem && refreshedItem.element) {
+                refreshedItem.element.classList.add('gp-focused');
+                refreshedItem.element.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            }
+
             return true;
         }
 
@@ -1534,11 +1543,171 @@ class InputManager {
             const btnStart = activeGamepad.buttons[this.gamepadBindings.startGame !== undefined ? this.gamepadBindings.startGame : 9];
 
             if (this.director.gameState === 'menu') {
+                // Gamepad Lobby Menu Navigation Overlord
+                const axes = activeGamepad.axes;
+                const dpadUp = activeGamepad.buttons[12]?.pressed || (axes && axes[1] < -0.5);
+                const dpadDown = activeGamepad.buttons[13]?.pressed || (axes && axes[1] > 0.5);
+                const dpadLeft = activeGamepad.buttons[14]?.pressed || (axes && axes[0] < -0.5);
+                const dpadRight = activeGamepad.buttons[15]?.pressed || (axes && axes[0] > 0.5);
+                const btnAccept = btnA?.pressed;
+
+                let navUp = false;
+                let navDown = false;
+                let navLeft = false;
+                let navRight = false;
+                let pressAccept = false;
+
+                if (dpadUp) {
+                    if (!this.wasLobbyUp) { navUp = true; this.wasLobbyUp = true; }
+                } else { this.wasLobbyUp = false; }
+
+                if (dpadDown) {
+                    if (!this.wasLobbyDown) { navDown = true; this.wasLobbyDown = true; }
+                } else { this.wasLobbyDown = false; }
+
+                if (dpadLeft) {
+                    if (!this.wasLobbyLeft) { navLeft = true; this.wasLobbyLeft = true; }
+                } else { this.wasLobbyLeft = false; }
+
+                if (dpadRight) {
+                    if (!this.wasLobbyRight) { navRight = true; this.wasLobbyRight = true; }
+                } else { this.wasLobbyRight = false; }
+
+                if (btnAccept) {
+                    if (!this.wasLobbyAccept) { pressAccept = true; this.wasLobbyAccept = true; }
+                } else { this.wasLobbyAccept = false; }
+
+                const lobbyGroups = [
+                    { id: 'username', name: 'Minifig Username', type: 'input', elementId: 'player-name' },
+                    { id: 'autoloot', name: 'Auto Loot', type: 'checkbox', elementId: 'auto-pickup' },
+                    { id: 'color', name: 'Minifig Color', type: 'picker', selector: '.color-option' },
+                    { id: 'mode', name: 'Game Mode', type: 'toggle', selector: '#mode-toggle .toggle-btn' },
+                    { id: 'team', name: 'Team Type', type: 'toggle', selector: '#team-toggle .toggle-btn' },
+                    { id: 'duocode', name: 'Duo Code', type: 'input', elementId: 'duo-code', condition: () => {
+                        const mode = document.querySelector('#mode-toggle .toggle-btn.selected')?.dataset.value;
+                        const team = document.querySelector('#team-toggle .toggle-btn.selected')?.dataset.value;
+                        return mode === 'online' && team === 'duo';
+                    }},
+                    { id: 'botcount', name: 'Bot Count', type: 'select', elementId: 'bot-count', condition: () => {
+                        const mode = document.querySelector('#mode-toggle .toggle-btn.selected')?.dataset.value;
+                        return mode === 'offline';
+                    }},
+                    { id: 'scene', name: 'Map Scene', type: 'picker', selector: '.scene-card' },
+                    { id: 'start', name: 'Play Button', type: 'button', elementId: 'btn-start-game' },
+                    { id: 'calibrate', name: 'Calibration', type: 'button', elementId: 'btn-customize-gamepad', condition: () => {
+                        const btn = document.getElementById('btn-customize-gamepad');
+                        return btn && btn.style.display !== 'none';
+                    }},
+                    { id: 'profile', name: 'Profile & Friends', type: 'button', elementId: 'btn-mobile-social' }
+                ];
+
+                const activeGroups = lobbyGroups.filter(g => !g.condition || g.condition());
+                
+                if (this.activeLobbyGroupIndex === undefined || this.activeLobbyGroupIndex >= activeGroups.length) {
+                    this.activeLobbyGroupIndex = 0;
+                }
+
+                if (navDown) {
+                    this.activeLobbyGroupIndex = (this.activeLobbyGroupIndex + 1) % activeGroups.length;
+                    try { sfx.playClick(); } catch(e) {}
+                } else if (navUp) {
+                    this.activeLobbyGroupIndex = (this.activeLobbyGroupIndex - 1 + activeGroups.length) % activeGroups.length;
+                    try { sfx.playClick(); } catch(e) {}
+                }
+
+                const currentGroup = activeGroups[this.activeLobbyGroupIndex];
+                
+                // Process inputs on the focused group
+                if (currentGroup) {
+                    if (currentGroup.type === 'picker' || currentGroup.type === 'toggle') {
+                        const options = Array.from(document.querySelectorAll(currentGroup.selector));
+                        const selectedIndex = options.findIndex(el => el.classList.contains('selected'));
+                        let nextIndex = selectedIndex >= 0 ? selectedIndex : 0;
+
+                        if (navRight) {
+                            nextIndex = (nextIndex + 1) % options.length;
+                            try { sfx.playClick(); } catch(e) {}
+                        } else if (navLeft) {
+                            nextIndex = (nextIndex - 1 + options.length) % options.length;
+                            try { sfx.playClick(); } catch(e) {}
+                        }
+
+                        if (navLeft || navRight) {
+                            options[nextIndex].click();
+                            setTimeout(() => {
+                                document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
+                                options[nextIndex].classList.add('gp-focused');
+                            }, 50);
+                        }
+                    } else if (currentGroup.type === 'select') {
+                        const selectEl = document.getElementById(currentGroup.elementId);
+                        if (selectEl) {
+                            let nextIndex = selectEl.selectedIndex;
+                            if (navRight) {
+                                nextIndex = Math.min(selectEl.options.length - 1, nextIndex + 1);
+                                try { sfx.playClick(); } catch(e) {}
+                            } else if (navLeft) {
+                                nextIndex = Math.max(0, nextIndex - 1);
+                                try { sfx.playClick(); } catch(e) {}
+                            }
+                            if (navLeft || navRight) {
+                                selectEl.selectedIndex = nextIndex;
+                                selectEl.dispatchEvent(new Event('change'));
+                            }
+                        }
+                    } else if (currentGroup.type === 'checkbox') {
+                        if (pressAccept || navLeft || navRight) {
+                            const checkboxEl = document.getElementById(currentGroup.elementId);
+                            if (checkboxEl) {
+                                checkboxEl.checked = !checkboxEl.checked;
+                                checkboxEl.dispatchEvent(new Event('change'));
+                                try { sfx.playClick(); } catch(e) {}
+                            }
+                        }
+                    } else if (currentGroup.type === 'button') {
+                        if (pressAccept) {
+                            const btnEl = document.getElementById(currentGroup.elementId);
+                            if (btnEl) {
+                                try { sfx.playClick(); } catch(e) {}
+                                btnEl.click();
+                            }
+                        }
+                    } else if (currentGroup.type === 'input') {
+                        if (pressAccept) {
+                            const inputEl = document.getElementById(currentGroup.elementId);
+                            if (inputEl) {
+                                try { sfx.playClick(); } catch(e) {}
+                                inputEl.focus();
+                            }
+                        }
+                    }
+                }
+
+                // Render current focus frame
+                document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
+                const refreshedGroup = activeGroups[this.activeLobbyGroupIndex];
+                if (refreshedGroup) {
+                    let targetEl = null;
+                    if (refreshedGroup.type === 'input' || refreshedGroup.type === 'checkbox' || refreshedGroup.type === 'select' || refreshedGroup.type === 'button') {
+                        targetEl = document.getElementById(refreshedGroup.elementId);
+                    } else if (refreshedGroup.type === 'picker' || refreshedGroup.type === 'toggle') {
+                        const options = document.querySelectorAll(refreshedGroup.selector);
+                        const selected = Array.from(options).find(el => el.classList.contains('selected'));
+                        targetEl = selected || options[0];
+                    }
+
+                    if (targetEl) {
+                        targetEl.classList.add('gp-focused');
+                    }
+                }
+
+                // Keep Start button active as a global hotkey shortcut to play
                 if (btnStart && btnStart.pressed) {
                     const startBtn = document.getElementById('btn-start-game');
                     if (startBtn && !startBtn.disabled) {
                         if (!this.menuClickCooldown || Date.now() - this.menuClickCooldown > 1000) {
                             this.menuClickCooldown = Date.now();
+                            try { sfx.playClick(); } catch(e) {}
                             startBtn.click();
                         }
                     }
@@ -1701,7 +1870,12 @@ class InputManager {
         }
 
         if (btnDrop && (btnDrop.pressed || btnDrop.value > 0.5)) {
-            this.actions.dropWeapon = true;
+            if (!this.wasDropPressed) {
+                this.actions.dropWeapon = true;
+                this.wasDropPressed = true;
+            }
+        } else if (btnDrop && !(btnDrop.pressed || btnDrop.value > 0.5)) {
+            this.wasDropPressed = false;
         }
 
         // Support Reload Action on Gamepad
@@ -1828,6 +2002,8 @@ class InputManager {
     openGamepadCustomizer() {
         this.gamepadCustomizerOpen = true;
         this.listeningAction = null;
+        this.activeCustomizerIndex = 0; // Highlight first bind button!
+        this.wasCustAccept = true; // Block bleeding accept press from lobby button click!
         this.updateGamepadLabels();
         
         const modal = document.getElementById('gamepad-customizer-modal');
@@ -1848,6 +2024,11 @@ class InputManager {
         }
 
         localStorage.setItem('lego_contra_gamepad_bindings', JSON.stringify(this.gamepadBindings));
+        
+        // Return focus to lobby customization button!
+        document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
+        this.activeLobbyGroupIndex = 9; // Focus on calibration button after modal closes!
+        this.wasLobbyAccept = true; // Block bleeding accept press from close button click!
     }
 
     resetGamepadBindings() {
@@ -2009,6 +2190,7 @@ class InputManager {
         this.actions.toggleView = false;
         this.actions.bumperLeft = false;
         this.actions.bumperRight = false;
+        this.actions.dropWeapon = false;
     }
 
     applySavedHUDLayout() {
@@ -2042,7 +2224,6 @@ class InputManager {
         localStorage.removeItem('lego_contra_hud_layout');
         this.hudLayout = {
             'joystick-move-container': { x: 15, y: 75, scale: 1.0 },
-            'joystick-aim': { x: 85, y: 75, scale: 1.0 },
             't-btn-fire': { x: 70, y: 60, scale: 1.6 }, /* 1.6x Default Large fire button */
             't-btn-reload': { x: 88, y: 48, scale: 1.0 },
             't-btn-heal': { x: 78, y: 52, scale: 1.0 },
@@ -2082,8 +2263,6 @@ class Bullet {
     }
 
     update(dt) {
-        this.x += this.vx * dt * 60;
-        this.y += this.vy * dt * 60;
         this.life -= dt * 60;
         return this.life > 0;
     }
@@ -2344,10 +2523,23 @@ class Player extends Entity {
             this.vy = moveY * this.getSpeed() * fpsFactor;
         }
 
-        this.x += this.vx;
-        this.y += this.vy;
-
-        map.resolveCollisions(this);
+        // Sub-stepping to prevent phasing/teleporting through walls during frame drops or lag spikes
+        const distToMove = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const maxStep = 4; // Max movement step in pixels to avoid passing through thin walls (16px thickness)
+        if (distToMove > maxStep) {
+            const steps = Math.ceil(distToMove / maxStep);
+            const stepX = this.vx / steps;
+            const stepY = this.vy / steps;
+            for (let s = 0; s < steps; s++) {
+                this.x += stepX;
+                this.y += stepY;
+                map.resolveCollisions(this);
+            }
+        } else {
+            this.x += this.vx;
+            this.y += this.vy;
+            map.resolveCollisions(this);
+        }
 
         if (input.isAiming) {
             this.angle = input.aimAngle;
@@ -2846,10 +3038,23 @@ class Bot extends Entity {
         const fpsFactor = 60 * dt;
         this.vx = moveVecX * this.getSpeed() * fpsFactor;
         this.vy = moveVecY * this.getSpeed() * fpsFactor;
-        this.x += this.vx;
-        this.y += this.vy;
-
-        map.resolveCollisions(this);
+        // Sub-stepping to prevent phasing/teleporting through walls during frame drops or lag spikes
+        const distToMove = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+        const maxStep = 4; // Max movement step in pixels to avoid passing through thin walls (16px thickness)
+        if (distToMove > maxStep) {
+            const steps = Math.ceil(distToMove / maxStep);
+            const stepX = this.vx / steps;
+            const stepY = this.vy / steps;
+            for (let s = 0; s < steps; s++) {
+                this.x += stepX;
+                this.y += stepY;
+                map.resolveCollisions(this);
+            }
+        } else {
+            this.x += this.vx;
+            this.y += this.vy;
+            map.resolveCollisions(this);
+        }
 
         if (Math.abs(this.vx) > 0.1 || Math.abs(this.vy) > 0.1) {
             this.walkingFrame += 0.22;
@@ -3156,8 +3361,8 @@ class GameMap {
                     for (let attempt = 0; attempt < 50; attempt++) {
                         rx = sec.x + (this.random() - 0.5) * sec.r * 1.25;
                         ry = sec.y + (this.random() - 0.5) * sec.r * 1.25;
-                        rw = 20 + this.random() * 140;
-                        rh = 20 + this.random() * 140;
+                        rw = 70 + this.random() * 90; // Expanded minimum width to 70px to avoid narrow passages
+                        rh = 70 + this.random() * 90; // Expanded minimum height to 70px to avoid narrow passages
                         
                         // Enforce a 50px clearance for ruins to avoid overlaps
                         if (this.isPointOnIsland(rx, ry) && !this.checkBuildingOverlap(rx, ry, rw, rh, 50)) {
@@ -3179,7 +3384,7 @@ class GameMap {
                     }
                 }
             } else if (sec.type === 'forest') {
-                this.createBuilding(sec.x, sec.y, 100, 100, '#d35400', 0.5);
+                this.createBuilding(sec.x, sec.y, 140, 140, '#d35400', 0.5); // Enlarged to 140x140 for comfortable entryway and interior navigation
                 
                 const count = Math.floor(60 * Math.pow(ratio, 1.5));
                 for (let i = 0; i < count; i++) {
@@ -3257,7 +3462,7 @@ class GameMap {
         if (!this.isPointOnIsland(cx, cy)) return;
         
         const wallThickness = 12;
-        const doorWidth = 48; // Comfortable fixed door width for the player (diameter 24)
+        const doorWidth = 56; // Enlarged door width from 48px to 56px for ultra-comfortable player navigation (player diameter 24)
         const topWallWidth = (w - doorWidth) / 2;
 
         const walls = [
@@ -6120,8 +6325,18 @@ class GameDirector {
             this.matchEnding = false;
             this.matchTime = 0;
             if (this.input) {
+                this.input.clearActions();
                 this.input.gamepadEjectBlocked = true;
+                this.input.wasButton0Pressed = true;
+                this.input.wasDropPressed = false;
+                this.input.wasLBPressed = false;
+                this.input.wasRBPressed = false;
+                this.input.sprintLocked = false;
+                this.input.sprintLockedTarget = false;
+                this.input.moveJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
+                this.input.aimJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
             }
+            document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
             this.bullets = [];
             this.entities = [];
             
@@ -6304,8 +6519,18 @@ class GameDirector {
         this.matchEnding = false;
         this.bestTeamRank = 99;
         if (this.input) {
+            this.input.clearActions();
             this.input.gamepadEjectBlocked = true;
+            this.input.wasButton0Pressed = true;
+            this.input.wasDropPressed = false;
+            this.input.wasLBPressed = false;
+            this.input.wasRBPressed = false;
+            this.input.sprintLocked = false;
+            this.input.sprintLockedTarget = false;
+            this.input.moveJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
+            this.input.aimJoy = { active: false, startX: 0, startY: 0, x: 0, y: 0, identifier: null };
         }
+        document.querySelectorAll('.gp-focused').forEach(el => el.classList.remove('gp-focused'));
 
         // Dynamic Map Scaling - Scaled up 3x in dimensions (9x in surface area)
         let calculatedMapSize = 10800;
@@ -6613,60 +6838,79 @@ class GameDirector {
                     continue;
                 }
 
+                // Sub-stepping movement & continuous collision detection
+                const totalDx = bullet.vx * dt * 60;
+                const totalDy = bullet.vy * dt * 60;
+                const totalDist = Math.sqrt(totalDx * totalDx + totalDy * totalDy);
+
+                const stepSize = 8; // Max 8px per sub-step
+                const steps = Math.ceil(totalDist / stepSize) || 1;
+
                 let hit = false;
-                for (let k = 0; k < this.entities.length; k++) {
-                    const ent = this.entities[k];
-                    if (ent.state === 'alive' && ent !== bullet.owner) {
-                        const dx = bullet.x - ent.x;
-                        const dy = bullet.y - ent.y;
-                        const d = Math.sqrt(dx*dx + dy*dy);
+                let hitWall = false;
 
-                        if (d < ent.radius + bullet.radius) {
-                            if (this.areTeammates(bullet.owner, ent)) {
-                                continue;
-                            }
+                for (let s = 0; s < steps; s++) {
+                    bullet.x += totalDx / steps;
+                    bullet.y += totalDy / steps;
 
-                            if (this.isOnline) {
-                                if (bullet.owner === this.player || (this.isHost && bullet.owner instanceof Bot)) {
-                                    const isBot = ent instanceof Bot;
-                                    const targetId = ent.username;
-                                    this.sendNetPacket({
-                                        type: 'damage',
-                                        attackerId: bullet.owner.isPlayer ? bullet.owner.username : bullet.owner.username,
-                                        targetId: targetId,
-                                        damage: bullet.damage,
-                                        isBot: isBot
-                                    });
+                    // 1. Check entity collision at this sub-step
+                    for (let k = 0; k < this.entities.length; k++) {
+                        const ent = this.entities[k];
+                        if (ent.state === 'alive' && ent !== bullet.owner) {
+                            const dx = bullet.x - ent.x;
+                            const dy = bullet.y - ent.y;
+                            const d = Math.sqrt(dx * dx + dy * dy);
+
+                            if (d < ent.radius + bullet.radius) {
+                                if (this.areTeammates(bullet.owner, ent)) {
+                                    continue;
+                                }
+
+                                if (this.isOnline) {
+                                    if (bullet.owner === this.player || (this.isHost && bullet.owner instanceof Bot)) {
+                                        const isBot = ent instanceof Bot;
+                                        const targetId = ent.username;
+                                        this.sendNetPacket({
+                                            type: 'damage',
+                                            attackerId: bullet.owner.isPlayer ? bullet.owner.username : bullet.owner.username,
+                                            targetId: targetId,
+                                            damage: bullet.damage,
+                                            isBot: isBot
+                                        });
+                                        ent.takeDamage(bullet.damage, bullet.owner);
+                                    }
+                                } else {
                                     ent.takeDamage(bullet.damage, bullet.owner);
                                 }
-                            } else {
-                                ent.takeDamage(bullet.damage, bullet.owner);
-                            }
-                            
-                            if (bullet.weaponId === 'bricklauncher') {
-                                this.triggerBrickExplosionBlast(bullet.x, bullet.y, bullet.owner);
-                            }
+                                
+                                if (bullet.weaponId === 'bricklauncher') {
+                                    this.triggerBrickExplosionBlast(bullet.x, bullet.y, bullet.owner);
+                                }
 
-                            hit = true;
-                            break;
+                                hit = true;
+                                break;
+                            }
                         }
                     }
-                }
 
-                if (hit) {
-                    this.bullets.splice(i, 1);
-                    continue;
-                }
+                    if (hit) break;
 
-                if (this.map.checkWallCollision(bullet.x, bullet.y, bullet.radius)) {
-                    const bulletAngle = Math.atan2(bullet.vy, bullet.vx);
-                    fx.spawnWallImpact(bullet.x, bullet.y, bulletAngle, '#bdc3c7');
-                    sfx.playLegoRattle(0.18);
-                    
-                    if (bullet.weaponId === 'bricklauncher') {
-                        this.triggerBrickExplosionBlast(bullet.x, bullet.y, bullet.owner);
+                    // 2. Check wall collision at this sub-step
+                    if (this.map.checkWallCollision(bullet.x, bullet.y, bullet.radius)) {
+                        const bulletAngle = Math.atan2(bullet.vy, bullet.vx);
+                        fx.spawnWallImpact(bullet.x, bullet.y, bulletAngle, '#bdc3c7');
+                        sfx.playLegoRattle(0.18);
+                        
+                        if (bullet.weaponId === 'bricklauncher') {
+                            this.triggerBrickExplosionBlast(bullet.x, bullet.y, bullet.owner);
+                        }
+
+                        hitWall = true;
+                        break;
                     }
+                }
 
+                if (hit || hitWall) {
                     this.bullets.splice(i, 1);
                 }
             }
@@ -7054,7 +7298,12 @@ class GameDirector {
             sfx.playLoot();
         } else {
             this.bestTeamRank = Math.min(this.bestTeamRank || 99, this.aliveCount + 1);
-            sfx.playLegoRattle(0.8);
+            if (this.bestTeamRank === 1) {
+                victory = true;
+                sfx.playLoot();
+            } else {
+                sfx.playLegoRattle(0.8);
+            }
         }
 
         // Save stats to backend if authenticated

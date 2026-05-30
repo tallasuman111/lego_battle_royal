@@ -111,9 +111,8 @@ export class InputManager {
     // Touch Support with custom analog joysticks
     initTouchControls() {
         const joyMove = document.getElementById('joystick-move');
-        const joyAim = document.getElementById('joystick-aim');
         
-        if (!joyMove || !joyAim) return;
+        if (!joyMove) return;
 
         // Auto-detect touch capability
         const showTouchUI = () => {
@@ -174,65 +173,7 @@ export class InputManager {
         joyMove.addEventListener('touchend', resetMoveJoy);
         joyMove.addEventListener('touchcancel', resetMoveJoy);
 
-        // Right Joystick (Aim & Auto-Shoot)
-        joyAim.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            const touch = e.targetTouches[0];
-            const rect = joyAim.getBoundingClientRect();
-            this.aimJoy.active = true;
-            this.aimJoy.startX = rect.left + rect.width / 2;
-            this.aimJoy.startY = rect.top + rect.height / 2;
-            this.aimJoy.identifier = touch.identifier;
-            this.isFiring = true;
-        });
 
-        joyAim.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (!this.aimJoy.active) return;
-            for (let i = 0; i < e.touches.length; i++) {
-                const touch = e.touches[i];
-                if (touch.identifier === this.aimJoy.identifier) {
-                    const dx = touch.clientX - this.aimJoy.startX;
-                    const dy = touch.clientY - this.aimJoy.startY;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist > 5) {
-                        const screenAngle = Math.atan2(dy, dx);
-                        const clampedDist = Math.min(dist, this.maxJoyRadius);
-                        this.aimJoy.x = (Math.cos(screenAngle) * clampedDist) / this.maxJoyRadius;
-                        this.aimJoy.y = (Math.sin(screenAngle) * clampedDist) / this.maxJoyRadius;
-                        
-                        let worldAngle = screenAngle;
-                        if (this.camera && this.camera.viewMode === 'isometric') {
-                            worldAngle += Math.PI / 4;
-                        }
-                        
-                        this.aimX = Math.cos(worldAngle);
-                        this.aimY = Math.sin(worldAngle);
-                        this.aimAngle = worldAngle;
-                        this.isAiming = true;
-                        this.isFiring = true;
-                    }
-
-                    const knob = document.getElementById('joystick-aim-knob');
-                    if (knob) {
-                        knob.style.transform = `translate(${this.aimJoy.x * this.maxJoyRadius}px, ${this.aimJoy.y * this.maxJoyRadius}px)`;
-                    }
-                }
-            }
-        });
-
-        const resetAimJoy = () => {
-            this.aimJoy.active = false;
-            this.aimJoy.x = 0;
-            this.aimJoy.y = 0;
-            this.isFiring = false;
-            const knob = document.getElementById('joystick-aim-knob');
-            if (knob) knob.style.transform = 'translate(0px, 0px)';
-        };
-
-        joyAim.addEventListener('touchend', resetAimJoy);
-        joyAim.addEventListener('touchcancel', resetAimJoy);
 
         // Tap Buttons
         document.getElementById('t-btn-eject').addEventListener('touchstart', (e) => {

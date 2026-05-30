@@ -2882,6 +2882,49 @@ body.device-mobile .loot-item-name {
     transform-origin: center center;
 }
 
+/* Premium Gamepad Focus Highlight Selector Styles */
+.gp-focused {
+    outline: 3px solid #2ecc71 !important;
+    outline-offset: 4px;
+    box-shadow: 0 0 18px rgba(46, 204, 113, 0.8) !important;
+    transform: scale(1.03) !important;
+    transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    animation: gpFocusPulse 1.5s infinite alternate ease-in-out !important;
+}
+
+@keyframes gpFocusPulse {
+    from { box-shadow: 0 0 10px rgba(46, 204, 113, 0.6) !important; }
+    to { box-shadow: 0 0 20px rgba(46, 204, 113, 1.0) !important; }
+}
+
+/* Mobile Overrides for Announcement Banner to prevent central view blockage */
+body.device-mobile .announcement-banner {
+    position: fixed !important;
+    top: 85px !important;
+    left: 15px !important;
+    transform: scale(0.85) translateX(-20px) !important; /* Premium slide-in from left */
+    font-size: 0.72rem !important;
+    padding: 5px 12px !important;
+    border-radius: 6px !important;
+    border-left-width: 2.5px !important;
+    border-right-width: 2.5px !important;
+    background: rgba(0, 0, 0, 0.75) !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+    max-width: 250px !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    text-align: left !important;
+    opacity: 0 !important;
+    transition: all 0.25s ease-out !important;
+    z-index: 99999 !important;
+}
+
+body.device-mobile .announcement-banner.active {
+    transform: scale(1) translateX(0) !important;
+    opacity: 1 !important;
+}
+
 
 
 

@@ -28,8 +28,6 @@ export class Bullet {
     }
 
     update(dt) {
-        this.x += this.vx * dt * 60;
-        this.y += this.vy * dt * 60;
         this.life -= dt * 60;
         return this.life > 0;
     }
